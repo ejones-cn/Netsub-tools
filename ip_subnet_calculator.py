@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+IP子网切分计算器
+
+提供IP子网切分的核心功能，包括:
+1. IP地址和整数之间的转换
+2. 获取子网的详细信息
+3. 检查子网关系
+4. 执行子网切分
+"""
+
+__version__ = "1.0.0"
+
 import ipaddress
 
 def ip_to_int(ip_str):
@@ -19,9 +34,15 @@ def get_subnet_info(network_str):
     """
     try:
         network = ipaddress.IPv4Network(network_str, strict=False)
+        
+        # 计算通配符掩码：子网掩码的反码
+        wildcard = ~int(network.netmask) & 0xFFFFFFFF
+        wildcard_mask = int_to_ip(wildcard)
+        
         return {
             'network': str(network.network_address),
             'netmask': str(network.netmask),
+            'wildcard': wildcard_mask,
             'broadcast': str(network.broadcast_address),
             'cidr': str(network.with_prefixlen),
             'prefixlen': network.prefixlen,
@@ -54,63 +75,29 @@ def split_subnet(parent_cidr, split_cidr):
         if not split_net.subnet_of(parent_net):
             return {'error': f"{split_cidr} 不是 {parent_cidr} 的子网"}
         
-        # 获取所有可能的下一级子网
-        next_prefix = parent_net.prefixlen + 1
-        subnets = list(parent_net.subnets(new_prefix=next_prefix))
+        # 如果父网段和切分网段相同，直接返回空列表
+        if parent_net == split_net:
+            return {
+                'parent': parent_cidr,
+                'split': split_cidr,
+                'remaining_subnets': [],
+                'split_info': get_subnet_info(split_cidr),
+                'remaining_subnets_info': []
+            }
         
-        # 递归切分直到找到包含split_net的子网
-        def find_split(network):
-            if network == split_net:
-                return []
-            elif split_net.subnet_of(network):
-                next_subs = list(network.subnets(new_prefix=network.prefixlen + 1))
-                results = []
-                for sub in next_subs:
-                    if split_net.subnet_of(sub):
-                        results.extend(find_split(sub))
-                    else:
-                        results.append(sub)
-                return results
-            else:
-                return [network]
+        # 使用Python ipaddress模块的address_exclude方法获取剩余网段
+        # 这个方法会自动生成最简洁的剩余网段列表
+        remaining = list(parent_net.address_exclude(split_net))
         
-        remaining_subnets = []
-        for subnet in subnets:
-            remaining_subnets.extend(find_split(subnet))
-        
-        # 对结果进行聚合，合并连续的子网
-        def aggregate_subnets(subnets):
-            if not subnets:
-                return []
-            
-            # 按网络地址排序
-            sorted_subnets = sorted(subnets, key=lambda x: int(x.network_address))
-            aggregated = [sorted_subnets[0]]
-            
-            for subnet in sorted_subnets[1:]:
-                last = aggregated[-1]
-                # 检查是否可以合并
-                if last.broadcast_address + 1 == subnet.network_address and last.prefixlen == subnet.prefixlen:
-                    # 尝试合并
-                    try:
-                        merged = ipaddress.collapse_addresses([last, subnet])
-                        aggregated[-1] = list(merged)[0]
-                    except ValueError:
-                        # 无法合并，添加到列表
-                        aggregated.append(subnet)
-                else:
-                    aggregated.append(subnet)
-            
-            return aggregated
-        
-        aggregated_subnets = aggregate_subnets(remaining_subnets)
+        # 对剩余网段按CIDR进行排序
+        remaining.sort()
         
         return {
             'parent': parent_cidr,
             'split': split_cidr,
-            'remaining_subnets': [str(subnet) for subnet in aggregated_subnets],
+            'remaining_subnets': [str(subnet) for subnet in remaining],
             'split_info': get_subnet_info(split_cidr),
-            'remaining_subnets_info': [get_subnet_info(str(subnet)) for subnet in aggregated_subnets]
+            'remaining_subnets_info': [get_subnet_info(str(subnet)) for subnet in remaining]
         }
         
     except ValueError as e:
