@@ -1,0 +1,20 @@
+# Virtual Environment
+.venv/
+
+# Python Compiled Files
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+
+# Compiled Executables
+dist/
+
+# PyInstaller Build Files
+build/
+*.spec
+
+# Temporary Files
+*.tmp
+*.temp
