@@ -48,10 +48,29 @@ def create_pack_config(pack_type='onefile'):
         cmd.extend([
             '--noupx',  # 不使用UPX压缩，减少被误报的概率
             '--disable-windowed-traceback',  # 禁用窗口回溯，减少敏感信息
-            '--exclude-module=win32api',  # 排除可能引起误报的模块
-            '--exclude-module=win32com',  # 排除可能引起误报的模块
             '--exclude-module=winreg',  # 排除注册表操作模块
             '--exclude-module=_winreg',  # 排除旧版注册表操作模块
+            '--exclude-module=win32api',  # 排除可能引起误报的Windows API模块
+            '--exclude-module=win32com',  # 排除可能引起误报的COM模块
+            '--exclude-module=win32con',  # 排除Windows常量模块
+            '--exclude-module=win32event',  # 排除Windows事件模块
+            '--exclude-module=win32file',  # 排除Windows文件模块
+            '--exclude-module=win32pipe',  # 排除Windows管道模块
+            '--exclude-module=win32security',  # 排除Windows安全模块
+            '--exclude-module=win32service',  # 排除Windows服务模块
+            '--exclude-module=win32timezone',  # 排除Windows时区模块
+            '--exclude-module=pywintypes',  # 排除Windows类型模块
+            '--exclude-module=cryptography',  # 排除加密模块
+            '--exclude-module=ssl',  # 排除SSL相关模块
+            '--exclude-module=socket',  # 排除网络模块
+            '--exclude-module=urllib',  # 排除URL相关模块
+            '--exclude-module=urllib2',  # 排除旧版URL模块
+            '--exclude-module=http',  # 排除HTTP相关模块
+            '--exclude-module=httplib',  # 排除HTTP客户端模块
+            '--exclude-module=xmlrpc',  # 排除XML-RPC模块
+            '--exclude-module=socketserver',  # 排除Socket服务器模块
+            '--exclude-module=email',  # 排除邮件模块
+            '--exclude-module=sqlite3',  # 排除数据库模块
         ])
     
     cmd.append('windows_app.py')  # 主程序文件

@@ -367,14 +367,30 @@ HTML_TEMPLATE = '''
                                     // 清空画布
                                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                                     
-                                    // 绘制父网段信息
-                                    ctx.fillStyle = '#34495e';
-                                    ctx.font = '18px Arial bold';
-                                    ctx.textAlign = 'left';
-                                    ctx.fillText('父网段: ' + parentCidr, x, y - 10);
+                                    // 绘制父网段作为第一个图表条，与其他网段同级
+                                    ctx.fillStyle = '#95a5a6'; // 灰色表示父网段
+                                    var parentBarWidth = availableWidth; // 父网段占满整个宽度
+                                    ctx.fillRect(x, y, parentBarWidth, barHeight);
+                                    
+                                    // 绘制父网段文本
+                                    ctx.fillStyle = '#000000';
+                                    ctx.font = '16px Arial';
+                                    ctx.textBaseline = 'middle';
+                                    ctx.strokeStyle = '#ffffff';
+                                    ctx.lineWidth = 2;
+                                    
+                                    var segmentText = '父网段: ' + parentCidr;
+                                    var addressText = '可用地址数: ' + parentTotalAddresses.toLocaleString();
+                                    var addressX = x + 250;
+                                    
+                                    ctx.strokeText(segmentText, x + 15, y + barHeight / 2);
+                                    ctx.fillText(segmentText, x + 15, y + barHeight / 2);
+                                    ctx.strokeText(addressText, addressX, y + barHeight / 2);
+                                    ctx.fillText(addressText, addressX, y + barHeight / 2);
+                                    
+                                    y += barHeight + padding;
                                     
                                     // 绘制切分网段
-                                    y += 20;
                                     // 使用对数比例尺计算宽度
                                     var splitLogValue = Math.max(logMin, Math.log10(splitInfo.num_addresses));
                                     var splitBarWidth = Math.max(minBarWidth, ((splitLogValue - logMin) / (logMax - logMin)) * availableWidth);
@@ -481,24 +497,32 @@ HTML_TEMPLATE = '''
                                     ctx.textAlign = 'left';
                                     ctx.fillText('图例:', x, y + 20);
                                     
-                                    // 切分网段图例
-                                    ctx.fillStyle = '#3498db';
+                                    // 父网段图例
+                                    ctx.fillStyle = '#95a5a6';
                                     ctx.fillRect(x, y + 30, 20, 15);
                                     ctx.fillStyle = '#34495e';
                                     ctx.font = '12px Arial';
                                     ctx.textAlign = 'left';
-                                    ctx.fillText('切分网段', x + 30, y + 42);
+                                    ctx.fillText('父网段', x + 30, y + 42);
+                                    
+                                    // 切分网段图例
+                                    ctx.fillStyle = '#3498db';
+                                    ctx.fillRect(x + 150, y + 30, 20, 15);
+                                    ctx.fillStyle = '#34495e';
+                                    ctx.font = '12px Arial';
+                                    ctx.textAlign = 'left';
+                                    ctx.fillText('切分网段', x + 180, y + 42);
                                     
                                     // 剩余网段图例（显示多彩示例）
                                     var legendColors = ['#27ae60', '#e74c3c', '#f39c12', '#8e44ad'];
                                     for (var j = 0; j < legendColors.length; j++) {
                                         ctx.fillStyle = legendColors[j];
-                                        ctx.fillRect(x + 150 + j * 25, y + 30, 20, 15);
+                                        ctx.fillRect(x + 300 + j * 25, y + 30, 20, 15);
                                     }
                                     ctx.fillStyle = '#34495e';
                                     ctx.font = '12px Arial';
                                     ctx.textAlign = 'left';
-                                    ctx.fillText('剩余网段(多色)', x + 260, y + 42);
+                                    ctx.fillText('剩余网段(多色)', x + 410, y + 42);
                                     
                                     // 调整页面布局
                                     document.getElementById('subnetChartCanvas').parentElement.style.height = requiredHeight + 'px';
