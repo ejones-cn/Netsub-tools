@@ -1105,39 +1105,13 @@ if __name__ == "__main__":
     # 禁止调整窗口宽度，但允许调整高度
     root.resizable(width=False, height=True)
     
-    # 设置窗口图标
+    # 设置窗口图标 - 依赖PyInstaller的--icon参数
     try:
-        import sys
-        import os
-        
-        # 获取图标路径的另一种方式
-        if getattr(sys, 'frozen', False):
-            # 打包后的环境
-            base_path = sys._MEIPASS
-        else:
-            # 开发环境
-            base_path = os.path.abspath('.')
-        
-        icon_path = os.path.join(base_path, 'icon.ico')
-        
-        # 尝试多种图标设置方法
-        if os.path.exists(icon_path):
-            # 方法1: 使用iconbitmap
-            root.iconbitmap(icon_path)
-            
-            # 方法2: 使用wm_iconbitmap
-            root.wm_iconbitmap(icon_path)
-            
-            # 方法3: 使用PIL设置图标（如果可用）
-            try:
-                from PIL import Image, ImageTk
-                img = Image.open(icon_path)
-                photo = ImageTk.PhotoImage(img)
-                root.iconphoto(True, photo)
-            except Exception as e:
-                pass
-    except Exception as e:
+        # 这部分代码已移除，改为仅依赖PyInstaller的--icon参数设置图标
+        # 这样可以避免打包后的图标路径问题
         pass
+    except Exception as e:
+        print(f"设置窗口图标失败: {e}")
     
     # 创建应用实例
     app = IPSubnetSplitterApp(root)
