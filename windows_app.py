@@ -1027,7 +1027,7 @@ class IPSubnetSplitterApp:
         # 创建对话框窗口
         about_window = tk.Toplevel(self.root)
         about_window.title(f"关于 {self.app_name}")
-        about_window.geometry("350x200")
+        about_window.geometry("350x220")  # 调大窗口高度
         about_window.resizable(False, False)
         
         # 确保对话框在主窗口之上
@@ -1054,31 +1054,63 @@ class IPSubnetSplitterApp:
         # 设置对话框位置
         about_window.geometry('{}x{}+{}+{}'.format(dialog_width, dialog_height, x, y))
         
-        # 创建内容框架
-        content_frame = ttk.Frame(about_window, padding="20")
+        # 创建内容框架，移除所有边框和焦点指示
+        content_frame = ttk.Frame(about_window, padding=(15, 0, 15, 0), relief="flat", borderwidth=0)
         content_frame.pack(fill=tk.BOTH, expand=True)
         
-        # 添加应用名称和版本
-        app_name_label = ttk.Label(content_frame, text=self.app_name, font=('微软雅黑', 14, 'bold'))
-        app_name_label.pack(pady=(0, 10))
+        # 创建上下占位框架实现内容垂直居中
+        top_spacer = ttk.Frame(content_frame)
+        top_spacer.pack(side="top", expand=True, fill="y")
         
-        version_label = ttk.Label(content_frame, text=f"版本 {self.app_version}")
-        version_label.pack(pady=(0, 15))
+        # 创建内部框架放置实际内容
+        inner_frame = ttk.Frame(content_frame)
+        inner_frame.pack(side="top", fill="both")
+        
+        bottom_spacer = ttk.Frame(content_frame)
+        bottom_spacer.pack(side="top", expand=True, fill="y")
+        
+        # 移除对话框的焦点指示
+        about_window.focus_set()
+        about_window.bind("<FocusIn>", lambda e: None)
+        about_window.bind("<FocusOut>", lambda e: None)
+        
+        # 为所有标签和按钮添加焦点样式，移除虚线
+        self.style.configure("TLabel", focuscolor="none")
+        self.style.configure("TButton", focuscolor="none", focuswidth=0)
+        self.style.map("TButton", focuscolor=[('focus', 'none')], focuswidth=[('focus', 0)])
+        
+        # 标题区域
+        title_frame = ttk.Frame(inner_frame)
+        title_frame.pack(pady=(10, 8))
+        
+        # 添加应用名称作为主要标题
+        app_name_label = ttk.Label(title_frame, text=self.app_name, font=('微软雅黑', 16, 'bold'))
+        app_name_label.pack()
+        
+        # 添加版本号
+        version_label = ttk.Label(title_frame, text=f"版本 {self.app_version}", font=('微软雅黑', 10))
+        version_label.pack(pady=(1, 0))
+        
+        # 信息区域
+        info_frame = ttk.Frame(inner_frame)
+        info_frame.pack(pady=(0, 8))
         
         # 添加作者信息
-        author_label = ttk.Label(content_frame, text="作者: Ejones")
-        author_label.pack(pady=(0, 5))
+        author_label = ttk.Label(info_frame, text="作者：Ejones", font=('微软雅黑', 10))
+        author_label.pack(pady=(0, 1))
         
-        email_label = ttk.Label(content_frame, text="联系方式: ejones.cn@hotmail.com")
-        email_label.pack(pady=(0, 15))
+        # 添加联系方式
+        email_label = ttk.Label(info_frame, text="邮箱：ejones.cn@hotmail.com", font=('微软雅黑', 10))
+        email_label.pack()
+        
+        # 直接在内容框架中添加确定按钮和版权信息，不使用额外的底部框架
+        # 添加确定按钮
+        ok_button = ttk.Button(inner_frame, text="确定", command=about_window.destroy, width=12)
+        ok_button.pack(pady=(0, 2))
         
         # 添加版权信息
-        copyright_label = ttk.Label(content_frame, text="© 2025 IP 子网分割工具", font=('微软雅黑', 8))
-        copyright_label.pack(side=tk.BOTTOM, pady=(0, 10))
-        
-        # 添加确定按钮
-        ok_button = ttk.Button(content_frame, text="确定", command=about_window.destroy, width=10)
-        ok_button.pack(pady=(10, 0))
+        copyright_label = ttk.Label(inner_frame, text="© 2025 IP 子网分割工具", font=('微软雅黑', 8))
+        copyright_label.pack(pady=(2, 10))
 
 if __name__ == "__main__":
     # 创建主窗口
@@ -1112,8 +1144,10 @@ if __name__ == "__main__":
         # 在打包后的程序中，使用PyInstaller的资源路径
         import os
         import sys
+        import tkinter as tk
         
         # 获取图标文件路径
+        icon_path = None
         if hasattr(sys, '_MEIPASS'):
             # 打包后的路径
             icon_path = os.path.join(sys._MEIPASS, 'icon.ico')
@@ -1121,9 +1155,20 @@ if __name__ == "__main__":
             # 开发环境路径
             icon_path = 'icon.ico'
             
-        # 设置窗口图标
+        # 确保图标文件存在
         if os.path.exists(icon_path):
-            root.iconbitmap(icon_path)
+            # Windows系统上设置图标的最佳实践
+            # 使用iconbitmap设置窗口标题栏图标
+            root.iconbitmap(default=icon_path)
+            
+            # 额外尝试：使用PhotoImage和iconphoto作为备选
+            try:
+                # 注意：PhotoImage可能无法直接处理.ico文件，需要转换
+                # 这里先尝试直接加载，如果失败则忽略
+                icon = tk.PhotoImage(file=icon_path)
+                root.iconphoto(True, icon)
+            except Exception:
+                pass  # 如果PhotoImage方法失败，继续执行
     except Exception as e:
         print(f"设置窗口图标失败: {e}")
     
