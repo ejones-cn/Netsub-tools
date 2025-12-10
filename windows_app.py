@@ -1105,11 +1105,25 @@ if __name__ == "__main__":
     # 禁止调整窗口宽度，但允许调整高度
     root.resizable(width=False, height=True)
     
-    # 设置窗口图标 - 依赖PyInstaller的--icon参数
+    # 设置窗口图标
     try:
-        # 这部分代码已移除，改为仅依赖PyInstaller的--icon参数设置图标
-        # 这样可以避免打包后的图标路径问题
-        pass
+        # 尝试加载图标文件
+        # 在开发环境中，图标文件位于当前目录
+        # 在打包后的程序中，使用PyInstaller的资源路径
+        import os
+        import sys
+        
+        # 获取图标文件路径
+        if hasattr(sys, '_MEIPASS'):
+            # 打包后的路径
+            icon_path = os.path.join(sys._MEIPASS, 'icon.ico')
+        else:
+            # 开发环境路径
+            icon_path = 'icon.ico'
+            
+        # 设置窗口图标
+        if os.path.exists(icon_path):
+            root.iconbitmap(icon_path)
     except Exception as e:
         print(f"设置窗口图标失败: {e}")
     
