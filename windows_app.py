@@ -8,29 +8,11 @@
 # 所有导入语句放在最顶部
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog
-import logging
 import os
 import csv
 
 # 导入自定义模块
 from ip_subnet_calculator import split_subnet, ip_to_int, get_subnet_info
-
-# 配置日志记录
-# 使用当前工作目录作为日志目录，避免打包后路径问题
-log_dir = os.path.join(os.getcwd(), 'logs')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, 'app.log')),
-        logging.StreamHandler()  # 同时输出到控制台
-    ]
-)
-
-logger = logging.getLogger(__name__)
 
 # 自定义的ColoredNotebook类，支持每个标签不同颜色
 class ColoredNotebook(ttk.Frame):
@@ -196,28 +178,25 @@ class IPSubnetSplitterApp:
         
         # 检查当前主题
         current_theme = self.style.theme_use()
-        logging.debug(f"当前Tkinter主题: {current_theme}")
         
         # 添加更详细的调试信息
         try:
             # 获取当前可用的主题
             available_themes = self.style.theme_names()
             print(f"可用主题: {available_themes}")
-            logging.debug(f"可用主题: {available_themes}")
             
             # 尝试设置为clam主题（这个主题通常支持更多自定义样式）
             self.style.theme_use('clam')
             print("主题已设置为clam")
-            logging.debug("成功切换到clam主题")
             
             # 验证主题是否设置成功
             current_theme = self.style.theme_use()
             print(f"当前主题: {current_theme}")
-            logging.debug(f"当前主题: {current_theme}")
+
             
         except Exception as e:
             print(f"设置主题时出错: {e}")
-            logging.debug(f"无法切换到clam主题: {e}")
+
             
         self.style.configure("TLabel", font=('微软雅黑', 10))
         self.style.configure("TButton", font=('微软雅黑', 10), focuscolor="#888888", focuswidth=1)
@@ -693,177 +672,210 @@ class IPSubnetSplitterApp:
         self.chart_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     
     def draw_distribution_chart(self):
-        """绘制网段分布柱状图"""
-        logger.debug("开始绘制分布图...")
+        """绘制网段分布柱状图 - 参考Web版本的呈现方式"""
         if not self.chart_data:
-            logger.debug("没有图表数据，跳过绘制")
             return
         
         try:
             # 清空Canvas
             self.chart_canvas.delete("all")
-            logger.debug("Canvas已清空")
             
             # 获取Canvas尺寸
             width = self.chart_canvas.winfo_width()
             canvas_height = self.chart_canvas.winfo_height()
-            logger.debug(f"Canvas尺寸: {width}x{canvas_height}")
             
             # 如果Canvas还没有渲染完成，使用默认尺寸
             if width < 10:
                 width = 600
-                logger.debug(f"Canvas未渲染完成，使用默认宽度: {width}")
             if canvas_height < 10:
                 canvas_height = 400
-                logger.debug(f"Canvas未渲染完成，使用默认高度: {canvas_height}")
             
-            # 设置边距
-            margin_left = 120  # 左侧边距，用于显示网段名称（增加宽度以避免名称越界）
-            margin_right = 80  # 右侧边距，用于显示信息和百分比
-            margin_top = 100  # 顶部边距，用于显示标题
-            margin_bottom = 60  # 底部边距
-            logger.debug(f"边距设置: 左={margin_left}, 右={margin_right}, 上={margin_top}, 下={margin_bottom}")
+            # 设置边距（参考Web版布局）
+            margin_left = 50
+            margin_right = 80
+            margin_top = 50
+            margin_bottom = 80
             
             # 计算可用绘图区域宽度
             chart_width = width - margin_left - margin_right
-            logger.debug(f"可用绘图区域宽度: {chart_width}")
             
-            # 获取父网段范围
-            parent_start = self.chart_data.get('parent', {}).get('start', 0)
-            parent_end = self.chart_data.get('parent', {}).get('end', 1)
-            parent_range = self.chart_data.get('parent', {}).get('range', 1)
-            logger.debug(f"父网段: 开始={parent_start}, 结束={parent_end}, 范围={parent_range}")
+            # 获取父网段信息
+            parent_info = self.chart_data.get('parent', {})
+            parent_cidr = parent_info.get('name', '')
+            parent_range = parent_info.get('range', 1)
             
             # 获取网段列表
             networks = self.chart_data.get('networks', [])
-            logger.debug(f"获取到网段列表: {networks}")
             if not networks:
                 # 没有网段时显示提示
-                logger.debug("没有网段数据，显示提示信息")
                 self.chart_canvas.create_text(width / 2, canvas_height / 2, 
                                              text="无网段数据", font=('微软雅黑', 12))
                 return
             
-            # 绘制标题
-            logger.debug("绘制标题...")
-            title_font = ('微软雅黑', 14, 'bold')
-            self.chart_canvas.create_text(width / 2, margin_top / 2, 
-                                         text="网段分布示意图", font=title_font)
+            # 不绘制主标题，父网段和切分网段同等地位显示
             
-            # 使用固定的柱状图高度和间距，确保内容不会挤在一起
-            bar_height = 28  # 增加柱状图高度，提高可读性
-            bar_spacing = 15  # 增加间距，确保内容不拥挤
+            # 使用对数比例尺来更好显示差距巨大的网段大小（参考Web版算法）
+            import math
+            log_max = math.log10(parent_range)
+            log_min = 3  # 最小显示3个数量级（1000个地址）
+            min_bar_width = 50  # 小网段的最小显示宽度
             
-            # 设置起始绘制位置 - 无需额外偏移，后续会在绘制时居中
+            # 柱状图配置
+            bar_height = 40
+            padding = 20
+            x = margin_left
+            y = margin_top
             
-            # 使用固定字体大小，确保可读性
-            label_font = ('微软雅黑', 10)
-            small_font = ('微软雅黑', 9)
-            
-            # 计算图表所需的总高度
-            total_chart_height = margin_top + margin_bottom + (bar_height + bar_spacing) * len(networks)
-            logger.debug(f"图表总高度: {total_chart_height}")
-            
-            # 绘制父网段背景 - 使用更浅的底色以提高可读性
-            parent_color = "#fafafa"  # 使用浅灰色背景
-            self.chart_canvas.create_rectangle(margin_left, margin_top, 
-                                              margin_left + chart_width, 
-                                              margin_top + (bar_height + bar_spacing) * len(networks), 
-                                              fill=parent_color, outline="#d0d0d0", width=1)
-            
-            # 绘制网格线（可选，提高可读性）
-            for i in range(0, len(networks) + 1):
-                y_line = margin_top + i * (bar_height + bar_spacing)
-                self.chart_canvas.create_line(margin_left, y_line, 
-                                             margin_left + chart_width, y_line, 
-                                             fill="#c0c0c0", dash=(2, 2))
-            
-            # 绘制每个网段
-            for i, network in enumerate(networks):
-                # 计算柱状图位置 - 所有柱状图靠左对齐
-                min_bar_width = 20  # 最小柱状图宽度
-                
-                # 所有柱状图都从左侧开始
-                x1 = margin_left
-                
-                # 计算实际宽度
-                network_range = network.get('range', 1)
-                actual_width = (network_range / parent_range) * chart_width if parent_range > 0 else min_bar_width
-                
-                # 确保至少有最小宽度
-                bar_width = max(min_bar_width, actual_width)
-                
-                # 如果网段太小，让它有最小宽度
-                x2 = x1 + bar_width
-                
-                # 确保不超出图表右边界
-                if x2 > margin_left + chart_width:
-                    x2 = margin_left + chart_width
-                    
-                # 计算垂直位置，使柱状图在两条虚线之间居中
-                y1 = margin_top + i * (bar_height + bar_spacing) + (bar_spacing / 2)
-                y2 = y1 + bar_height
-                
-                # 绘制柱状图 - 使用现代化的颜色方案
-                color = network.get('color', '#e1bee7')
-                # 添加轻微的阴影效果
-                self.chart_canvas.create_rectangle(x1 + 1, y1 + 1, x2 + 1, y2 + 1, 
-                                                 fill="#cccccc", outline="", width=0)
-                # 绘制主柱状图
-                self.chart_canvas.create_rectangle(x1, y1, x2, y2, 
-                                                 fill=color, outline="#333", width=1)
-                
-                # 绘制网段名称
-                name = network.get('name', '未知')
-                self.chart_canvas.create_text(margin_left - 5, y1 + bar_height/2, 
-                                             text=name, anchor=tk.E, font=label_font, fill="#333333")
-                
-                # 计算并显示网段信息
-                total_ips = network.get('range', 0)  # network['range']已经是地址总数
-                # 计算可用地址数：减去网络地址和广播地址（如果不是单个IP）
-                usable_addresses = total_ips - 2 if total_ips > 2 else total_ips
-                percentage = (network.get('range', 0) / parent_range * 100) if parent_range > 0 else 0
-                type_text = "切分网段" if network.get('type') == 'split' else "剩余网段"
-                
-                # 绘制网段类型和可用地址数
-                info_text = f"{type_text} - 可用地址数: {usable_addresses:,}"
-                # 计算文本宽度
-                temp_text = self.chart_canvas.create_text(0, 0, text=info_text, font=small_font)
-                text_bbox = self.chart_canvas.bbox(temp_text)
-                text_width = text_bbox[2] - text_bbox[0]  # 精确计算文本宽度
-                self.chart_canvas.delete(temp_text)  # 删除临时文本
-                
-                # 定义图表的绝对右侧边界
-                # Canvas总宽度减去右侧边距，确保文本不会超出图表可视区域
-                absolute_chart_right = width - margin_right + 5  # 5是安全边距
-                
-                # 文本默认显示在柱状图右侧，但确保不超出图表边界
-                # 计算最大允许的文本起始位置
-                max_text_x = absolute_chart_right - text_width
-                
-                # 设置文本起始位置，始终从柱状图右侧开始绘制
-                info_x = x2 + 10  # 始终在柱状图右侧10像素开始绘制
-                info_anchor = tk.W
-                info_color = "#333333"  # 统一使用黑色文本
-                
-                self.chart_canvas.create_text(info_x, y1 + bar_height/2, 
-                                             text=info_text, font=small_font, fill=info_color, 
-                                             anchor=info_anchor)
-                
-                # 绘制百分比（右侧）
-                self.chart_canvas.create_text(margin_left + chart_width + 10, y1 + bar_height/2, 
-                                             text=f"{percentage:.1f}%", anchor=tk.W, font=label_font, fill="#555555")
-            
-            # 绘制X轴标签
-            self.chart_canvas.create_text(width / 2, margin_top + len(networks) * (bar_height + bar_spacing) + 25, 
-                                         text="网段地址范围", font=label_font, fill="#555555")
-            
-
+            # 动态设置Canvas高度
+            required_height = (y +  # 起始位置
+                               (bar_height + padding) +  # 父网段
+                               (bar_height + padding) +  # 切分网段
+                               40 +  # 剩余网段标题
+                               (len(networks) * (bar_height + padding)) +  # 所有剩余网段
+                               80)  # 图例和底部边距
             
             # 设置Canvas滚动区域
-            self.chart_canvas.config(scrollregion=(0, 0, width, total_chart_height))
+            self.chart_canvas.config(scrollregion=(0, 0, width, max(required_height, canvas_height)))
+            
+            # 绘制父网段
+            parent_range = parent_info.get('range', 1)
+            log_value = max(log_min, math.log10(parent_range))
+            bar_width = max(min_bar_width, ((log_value - log_min) / (log_max - log_min)) * chart_width)
+            
+            # 绘制父网段条（使用浅灰色）
+            color = '#95a5a6'  # 中性灰色
+            self.chart_canvas.create_rectangle(x, y, x + bar_width, y + bar_height, 
+                                               fill=color, outline="#333", width=1)
+            
+            # 绘制父网段信息
+            usable_addresses = parent_range - 2 if parent_range > 2 else parent_range
+            
+            # 网段信息
+            segment_text = f"父网段: {parent_cidr}"
+            self.chart_canvas.create_text(x + 15, y + bar_height / 2, 
+                                         text=segment_text, font=('微软雅黑', 12), 
+                                         anchor=tk.W, fill="#000000")
+            
+            # 可用地址数
+            address_text = f"可用地址数: {usable_addresses:,}"
+            self.chart_canvas.create_text(x + 250, y + bar_height / 2, 
+                                         text=address_text, font=('微软雅黑', 12), 
+                                         anchor=tk.W, fill="#000000")
+            
+            y += bar_height + padding
+            
+            # 绘制切分网段
+            split_networks = [net for net in networks if net.get('type') == 'split']
+            for i, network in enumerate(split_networks):
+                # 使用对数比例尺计算宽度（参考Web版）
+                network_range = network.get('range', 1)
+                log_value = max(log_min, math.log10(network_range))
+                bar_width = max(min_bar_width, ((log_value - log_min) / (log_max - log_min)) * chart_width)
+                
+                # 绘制切分网段条（蓝色）
+                color = '#3498db'  # Web版使用的蓝色
+                self.chart_canvas.create_rectangle(x, y, x + bar_width, y + bar_height, 
+                                                   fill=color, outline="#333", width=1)
+                
+                # 绘制网段信息（参考Web版布局）
+                name = network.get('name', '')
+                usable_addresses = network_range - 2 if network_range > 2 else network_range
+                
+                # 网段信息
+                segment_text = f"切分网段: {name}"
+                self.chart_canvas.create_text(x + 15, y + bar_height / 2, 
+                                             text=segment_text, font=('微软雅黑', 12), 
+                                             anchor=tk.W, fill="#000000")
+                
+                # 可用地址数
+                address_text = f"可用地址数: {usable_addresses:,}"
+                self.chart_canvas.create_text(x + 250, y + bar_height / 2, 
+                                             text=address_text, font=('微软雅黑', 12), 
+                                             anchor=tk.W, fill="#000000")
+                
+                y += bar_height + padding
+            
+            # 绘制剩余网段标题
+            y += 20  # 额外间距
+            title_font = ('微软雅黑', 14)  # 调小标题字体
+            remaining_count = len([n for n in networks if n.get('type') != 'split'])
+            self.chart_canvas.create_text(x, y, text=f"剩余网段 ({remaining_count} 个):", 
+                                         font=title_font, anchor=tk.W, fill="#34495e")
+            y += 20
+            
+            # 为剩余网段分配多种颜色（参考Web版的颜色方案）
+            subnet_colors = [
+                '#27ae60', '#e74c3c', '#f39c12', '#8e44ad', '#16a085',
+                '#2c3e50', '#d35400', '#c0392b', '#2980b9', '#27ae60',
+                '#f1c40f', '#e67e22', '#9b59b6', '#1abc9c', '#34495e',
+                '#e74c3c', '#f39c12', '#8e44ad', '#16a085', '#2c3e50'
+            ]
+            
+            # 绘制剩余网段
+            remaining_networks = [net for net in networks if net.get('type') != 'split']
+            for i, network in enumerate(remaining_networks):
+                # 使用对数比例尺计算宽度
+                network_range = network.get('range', 1)
+                log_value = max(log_min, math.log10(network_range))
+                bar_width = max(min_bar_width, ((log_value - log_min) / (log_max - log_min)) * chart_width)
+                
+                # 为每个剩余网段选择不同颜色（参考Web版）
+                color_index = i % len(subnet_colors)
+                color = subnet_colors[color_index]
+                
+                # 绘制剩余网段条
+                self.chart_canvas.create_rectangle(x, y, x + bar_width, y + bar_height, 
+                                                   fill=color, outline="#333", width=1)
+                
+                # 绘制网段信息
+                name = network.get('name', '')
+                usable_addresses = network_range - 2 if network_range > 2 else network_range
+                
+                # 网段信息
+                segment_text = f"网段 {i + 1}: {name}"
+                self.chart_canvas.create_text(x + 15, y + bar_height / 2, 
+                                             text=segment_text, font=('微软雅黑', 12), 
+                                             anchor=tk.W, fill="#000000")
+                
+                # 可用地址数
+                address_text = f"可用地址数: {usable_addresses:,}"
+                self.chart_canvas.create_text(x + 250, y + bar_height / 2, 
+                                             text=address_text, font=('微软雅黑', 12), 
+                                             anchor=tk.W, fill="#000000")
+                
+                y += bar_height + padding
+            
+            # 绘制图例（参考Web版）
+            legend_y = y + 20
+            self.chart_canvas.create_text(x, legend_y, text="图例:", 
+                                         font=('微软雅黑', 14), anchor=tk.W, fill="#34495e")
+            
+            # 增加图例文字与图例图形之间的间距
+            legend_items_y = legend_y + 35
+            
+            # 父网段图例
+            self.chart_canvas.create_rectangle(x, legend_items_y, x + 20, legend_items_y + 15, 
+                                               fill='#95a5a6', outline="#333")
+            self.chart_canvas.create_text(x + 30, legend_items_y + 7, text="父网段", 
+                                         font=('微软雅黑', 12), anchor=tk.W, fill="#34495e")
+            
+            # 切分网段图例
+            self.chart_canvas.create_rectangle(x + 100, legend_items_y, x + 120, legend_items_y + 15, 
+                                               fill='#3498db', outline="#333")
+            self.chart_canvas.create_text(x + 130, legend_items_y + 7, text="切分网段", 
+                                         font=('微软雅黑', 12), anchor=tk.W, fill="#34495e")
+            
+            # 剩余网段图例（显示多彩示例）
+            legend_colors = ['#27ae60', '#e74c3c', '#f39c12', '#8e44ad']
+            for j, color in enumerate(legend_colors):
+                self.chart_canvas.create_rectangle(x + 230 + j * 25, legend_items_y, 
+                                                   x + 250 + j * 25, legend_items_y + 15, 
+                                                   fill=color, outline="#333")
+            
+            self.chart_canvas.create_text(x + 340, legend_items_y + 7, text="剩余网段(多色)", 
+                                         font=('微软雅黑', 12), anchor=tk.W, fill="#34495e")
+            
         except Exception as e:
-            logger.error(f"图表绘制失败: {str(e)}", exc_info=True)
             # 出现错误时显示提示
             self.chart_canvas.delete("all")
             width = self.chart_canvas.winfo_width() or 600
@@ -871,8 +883,6 @@ class IPSubnetSplitterApp:
             title_font = ('微软雅黑', 12, 'bold')
             self.chart_canvas.create_text(width / 2, height / 2, 
                                          text="图表绘制失败", font=title_font, fill="red")
-        
-        logger.debug("分布图绘制完成")
     
 
     
