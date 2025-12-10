@@ -51,17 +51,12 @@ pip install -r requirements.txt
 
 ### Web界面
 
-**方式一：直接运行Python脚本**
+**运行Python脚本**
 ```bash
 python web_app.py
 ```
 
 然后在浏览器中访问：`http://localhost:5000`
-
-**方式二：使用批处理脚本**
-```bash
-.\run_web_app.bat
-```
 
 ### Windows GUI界面
 
@@ -136,14 +131,18 @@ Netsub tools/
 ├── web_app.py               # Web界面实现
 ├── windows_app.py           # Windows GUI界面实现
 ├── run_app.bat              # Windows GUI启动脚本
-├── run_web_app.bat          # Web界面启动脚本
-├── IP子网分割工具.spec      # PyInstaller编译配置
+├── simple_pack.py           # 打包脚本
+├── icon.ico                 # 应用图标
+├── icon.svg                 # 矢量图标
 ├── IMPLEMENTATION_SUMMARY.md # 实现总结文档
 ├── README.md                # 项目说明文档
 ├── requirements.txt         # 依赖配置文件
-├── setup.py                 # 安装配置文件
 ├── LICENSE                  # 许可证文件
-└── .gitignore               # Git忽略配置
+├── .gitignore               # Git忽略配置
+├── create_self_signed_cert.bat # 自签名证书创建脚本
+├── 打包脚本功能更新说明.md    # 打包脚本更新文档
+├── 数字签名使用说明.md        # 数字签名使用文档
+└── 解决方案说明.md           # 解决方案文档
 ```
 
 ## 🎨 界面预览
@@ -152,11 +151,15 @@ Netsub tools/
 - 简洁直观的表单布局
 - 实时结果展示
 - 响应式设计，支持移动端访问
+- 三标签页布局：切分网段信息、剩余网段列表、网段分布图表
+- 改进的网段分布图表，父网段与切分网段同级显示
 
 ### Windows GUI界面
 - 传统Windows应用风格
 - 多标签页组织功能
 - 丰富的可视化元素
+- 网段分布图表展示
+- 结果导出功能
 
 ## ✨ 技术特点
 
@@ -250,7 +253,8 @@ CIDR表示: 10.21.60.0/23
 - ✨ 新增批量处理功能
 - 🎨 优化Web界面响应式设计
 - ⚡ 提升大型网络计算性能
-- 📊 增强可视化展示效果
+- 📊 增强可视化展示效果，改进网段分布图表
+- 🔧 修复Web版网段分布图表中父网段显示问题
 - 🐛 修复已知bug
 
 ### v1.0.0 (2025-12-01)
