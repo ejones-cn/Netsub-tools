@@ -16,7 +16,7 @@ HTML_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IP子网切分工具 v1.0.0</title>
+    <title>IP子网切分工具 v1.1.0</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -181,7 +181,7 @@ HTML_TEMPLATE = '''
 </head>
 <body>
     <div class="container">
-        <h1>IP子网切分工具 v1.0.0</h1>
+        <h1>IP子网切分工具 v1.1.0</h1>
         
         <form method="POST">
             <div class="form-group">
@@ -562,7 +562,7 @@ HTML_TEMPLATE = '''
         </script>
     </div>
     <div style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 14px;">
-        版本: v1.0.0
+        版本: v1.1.0
     </div>
 </body>
 </html>

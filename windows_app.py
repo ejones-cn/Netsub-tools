@@ -7,9 +7,8 @@
 
 # 所有导入语句放在最顶部
 import tkinter as tk
-from tkinter import ttk, scrolledtext, filedialog
-import os
-import csv
+import math
+from tkinter import ttk, filedialog
 
 # 导入自定义模块
 from ip_subnet_calculator import split_subnet, ip_to_int, get_subnet_info
@@ -62,7 +61,6 @@ class ColoredNotebook(ttk.Frame):
                 
         except Exception as e:
             # 如果获取失败，尝试获取窗口背景色作为备选
-            print(f"获取背景色失败: {e}")
             bg_color = self.winfo_toplevel().cget("bg")
         
         # 将背景色应用到所有相关组件
@@ -89,7 +87,6 @@ class ColoredNotebook(ttk.Frame):
             self.tab_bar_spacer.config(bg=bg_color)
             
         except Exception as e:
-            print(f"获取result_frame背景色失败: {e}")
             # 回退到浅灰色背景
             self.tab_bar_container.config(bg="#f0f0f0")
             self.tab_bar.config(bg="#f0f0f0")
@@ -165,13 +162,13 @@ class ColoredNotebook(ttk.Frame):
 class IPSubnetSplitterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("IP子网切分工具 v1.0.0")
+        self.root.title("IP子网切分工具 v1.1.0")
         # 所有窗口大小、位置和限制设置都由主程序入口统一管理
         # 这里只设置窗口标题
         
         # 应用程序信息
         self.app_name = "IP子网切分工具"
-        self.app_version = "1.0.0"
+        self.app_version = "1.1.0"
         
         # 设置样式
         self.style = ttk.Style()
@@ -183,19 +180,12 @@ class IPSubnetSplitterApp:
         try:
             # 获取当前可用的主题
             available_themes = self.style.theme_names()
-            print(f"可用主题: {available_themes}")
-            
             # 尝试设置为clam主题（这个主题通常支持更多自定义样式）
             self.style.theme_use('clam')
-            print("主题已设置为clam")
-            
             # 验证主题是否设置成功
             current_theme = self.style.theme_use()
-            print(f"当前主题: {current_theme}")
-
-            
         except Exception as e:
-            print(f"设置主题时出错: {e}")
+            pass
 
             
         self.style.configure("TLabel", font=('微软雅黑', 10))
@@ -280,7 +270,7 @@ class IPSubnetSplitterApp:
             print("标签样式设置完成")
             
         except Exception as e:
-            print(f"设置标签样式时出错: {e}")
+            pass
         
         # 为不同标签页的内容区域设置不同的背景色
         self.style.configure("LightBlue.TFrame", background="#e3f2fd")   # 浅蓝色 - 切分网段信息
@@ -471,19 +461,17 @@ class IPSubnetSplitterApp:
         self.notebook.add_tab("剩余网段列表", self.remaining_frame, "#e8f5e9")  # 浅绿色
         self.notebook.add_tab("网段分布图表", self.chart_frame, "#f3e5f5")  # 浅紫色
         
-        print("标签页创建完成，每个标签有不同的颜色")
-        
         # 创建滚动容器
-        scroll_frame = ttk.Frame(self.chart_frame)
+        scroll_frame = ttk.Frame(self.chart_frame, style="LightPurple.TFrame")
         scroll_frame.pack(fill=tk.BOTH, expand=True)
         
         # 添加滚动条
         self.chart_scrollbar = ttk.Scrollbar(scroll_frame, orient=tk.VERTICAL)
         self.chart_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # 创建Canvas用于绘制柱状图
+        # 创建Canvas用于绘制柱状图，移除pady边距以避免显示灰色背景
         self.chart_canvas = tk.Canvas(scroll_frame, bg="white", yscrollcommand=self.chart_scrollbar.set)
-        self.chart_canvas.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.chart_canvas.pack(fill=tk.BOTH, expand=True, pady=0)
         
         # 配置滚动条
         self.chart_scrollbar.config(command=self.chart_canvas.yview)
@@ -671,6 +659,51 @@ class IPSubnetSplitterApp:
         """处理鼠标滚轮事件"""
         self.chart_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     
+    def draw_text_with_stroke(self, text, x, y, font, anchor=tk.W, fill="#ffffff", stroke="#000000", stroke_width=1.5, letter_spacing=1.5):
+        """绘制带描边的文字（使用4方向基础描边，平衡性能和可读性）
+        
+        Args:
+            text: 要绘制的文字
+            x: 起始x坐标
+            y: 起始y坐标
+            font: 字体设置
+            anchor: 文字锚点
+            fill: 文字颜色
+            stroke: 描边颜色（为了兼容性保留此参数）
+            stroke_width: 描边宽度（为了兼容性保留此参数）
+            letter_spacing: 字间距（为了兼容性保留此参数）
+        """
+        try:
+            # 使用4个方向的基础描边，平衡性能和可读性
+            stroke_color = "#000000"
+            offset = 1  # 描边偏移量
+            
+            # 绘制4个方向的描边
+            self.chart_canvas.create_text(x-offset, y, text=text, font=font, anchor=anchor, fill=stroke_color)
+            self.chart_canvas.create_text(x+offset, y, text=text, font=font, anchor=anchor, fill=stroke_color)
+            self.chart_canvas.create_text(x, y-offset, text=text, font=font, anchor=anchor, fill=stroke_color)
+            self.chart_canvas.create_text(x, y+offset, text=text, font=font, anchor=anchor, fill=stroke_color)
+            
+            # 绘制主文字
+            self.chart_canvas.create_text(x, y, text=text, font=font, anchor=anchor, fill=fill)
+        except Exception as e:
+            # 出错时直接绘制文字，不添加描边
+            self.chart_canvas.create_text(x, y, text=text, font=font, anchor=anchor, fill=fill)
+
+    def draw_text_without_stroke(self, text, x, y, font, anchor=tk.W, fill="#ffffff"):
+        """高效绘制不带描边的文字
+        
+        Args:
+            text: 要绘制的文字
+            x: 起始x坐标
+            y: 起始y坐标
+            font: 字体设置
+            anchor: 文字锚点
+            fill: 文字颜色
+        """
+        # 直接绘制文字，不添加描边
+        self.chart_canvas.create_text(x, y, text=text, font=font, anchor=anchor, fill=fill)
+    
     def draw_distribution_chart(self):
         """绘制网段分布柱状图 - 参考Web版本的呈现方式"""
         if not self.chart_data:
@@ -715,14 +748,13 @@ class IPSubnetSplitterApp:
             # 不绘制主标题，父网段和切分网段同等地位显示
             
             # 使用对数比例尺来更好显示差距巨大的网段大小（参考Web版算法）
-            import math
             log_max = math.log10(parent_range)
             log_min = 3  # 最小显示3个数量级（1000个地址）
             min_bar_width = 50  # 小网段的最小显示宽度
             
-            # 柱状图配置
-            bar_height = 40
-            padding = 20
+            # 柱状图配置 - 调整为更紧凑的显示
+            bar_height = 30
+            padding = 10
             x = margin_left
             y = margin_top
             
@@ -734,33 +766,39 @@ class IPSubnetSplitterApp:
                                (len(networks) * (bar_height + padding)) +  # 所有剩余网段
                                80)  # 图例和底部边距
             
+            # 确保背景色覆盖整个滚动区域，而不仅仅是初始可见区域
+            background_height = max(required_height, canvas_height)
+            self.chart_canvas.create_rectangle(0, 0, width, background_height, fill="#333333", outline="", width=0)
+            
             # 设置Canvas滚动区域
-            self.chart_canvas.config(scrollregion=(0, 0, width, max(required_height, canvas_height)))
+            self.chart_canvas.config(scrollregion=(0, 0, width, background_height))
             
             # 绘制父网段
             parent_range = parent_info.get('range', 1)
             log_value = max(log_min, math.log10(parent_range))
             bar_width = max(min_bar_width, ((log_value - log_min) / (log_max - log_min)) * chart_width)
             
-            # 绘制父网段条（使用浅灰色）
-            color = '#95a5a6'  # 中性灰色
+            # 绘制父网段条（使用明显的深灰色）
+            color = '#636e72'  # 明显的深灰色
             self.chart_canvas.create_rectangle(x, y, x + bar_width, y + bar_height, 
-                                               fill=color, outline="#333", width=1)
+                                               fill=color, outline="", width=0)
             
             # 绘制父网段信息
             usable_addresses = parent_range - 2 if parent_range > 2 else parent_range
             
-            # 网段信息
+            # 网段信息 - 使用带描边的文字绘制，提高可见度
             segment_text = f"父网段: {parent_cidr}"
-            self.chart_canvas.create_text(x + 15, y + bar_height / 2, 
-                                         text=segment_text, font=('微软雅黑', 12), 
-                                         anchor=tk.W, fill="#000000")
+            text_x = x + 15
+            text_y = y + bar_height / 2
+            font = ('微软雅黑', 11, 'bold')  # 使用粗体提高可读性
+            # 使用带描边的文字绘制方法
+            self.draw_text_with_stroke(segment_text, text_x, text_y, font, anchor=tk.W, fill="#ffffff")
             
-            # 可用地址数
+            # 可用地址数 - 使用带描边的文字绘制，提高可见度
             address_text = f"可用地址数: {usable_addresses:,}"
-            self.chart_canvas.create_text(x + 250, y + bar_height / 2, 
-                                         text=address_text, font=('微软雅黑', 12), 
-                                         anchor=tk.W, fill="#000000")
+            text_x = x + 250
+            # 使用带描边的文字绘制方法
+            self.draw_text_with_stroke(address_text, text_x, text_y, font, anchor=tk.W, fill="#ffffff")
             
             y += bar_height + padding
             
@@ -772,43 +810,49 @@ class IPSubnetSplitterApp:
                 log_value = max(log_min, math.log10(network_range))
                 bar_width = max(min_bar_width, ((log_value - log_min) / (log_max - log_min)) * chart_width)
                 
-                # 绘制切分网段条（蓝色）
-                color = '#3498db'  # Web版使用的蓝色
+                # 绘制切分网段条（明显的蓝色）
+                color = '#4a7eb4'  # 明显的蓝色
                 self.chart_canvas.create_rectangle(x, y, x + bar_width, y + bar_height, 
-                                                   fill=color, outline="#333", width=1)
+                                                   fill=color, outline="", width=0)
                 
                 # 绘制网段信息（参考Web版布局）
                 name = network.get('name', '')
                 usable_addresses = network_range - 2 if network_range > 2 else network_range
                 
-                # 网段信息
+                # 网段信息 - 使用带描边的文字绘制，提高可见度
                 segment_text = f"切分网段: {name}"
-                self.chart_canvas.create_text(x + 15, y + bar_height / 2, 
-                                             text=segment_text, font=('微软雅黑', 12), 
-                                             anchor=tk.W, fill="#000000")
+                text_x = x + 15
+                text_y = y + bar_height / 2
+                font = ('微软雅黑', 11, 'bold')  # 使用粗体提高可读性
+                # 使用带描边的文字绘制方法
+                self.draw_text_with_stroke(segment_text, text_x, text_y, font, anchor=tk.W, fill="#ffffff")
                 
-                # 可用地址数
+                # 可用地址数 - 使用带描边的文字绘制，提高可见度
                 address_text = f"可用地址数: {usable_addresses:,}"
-                self.chart_canvas.create_text(x + 250, y + bar_height / 2, 
-                                             text=address_text, font=('微软雅黑', 12), 
-                                             anchor=tk.W, fill="#000000")
+                text_x = x + 250
+                # 使用带描边的文字绘制方法
+                self.draw_text_with_stroke(address_text, text_x, text_y, font, anchor=tk.W, fill="#ffffff")
                 
                 y += bar_height + padding
+                
+                # 添加切分网段和剩余网段之间的虚线分割
+                self.chart_canvas.create_line(x, y + 5, x + chart_width, y + 5, 
+                                         fill="#cccccc", dash=(5, 2), width=1)
             
             # 绘制剩余网段标题
             y += 20  # 额外间距
-            title_font = ('微软雅黑', 14)  # 调小标题字体
+            title_font = ('微软雅黑', 11)  # 调小标题字体
             remaining_count = len([n for n in networks if n.get('type') != 'split'])
             self.chart_canvas.create_text(x, y, text=f"剩余网段 ({remaining_count} 个):", 
-                                         font=title_font, anchor=tk.W, fill="#34495e")
-            y += 20
+                                         font=title_font, anchor=tk.W, fill="#ffffff")
+            y += 15
             
-            # 为剩余网段分配多种颜色（参考Web版的颜色方案）
+            # 为剩余网段分配高区分度的柔和配色方案
             subnet_colors = [
-                '#27ae60', '#e74c3c', '#f39c12', '#8e44ad', '#16a085',
-                '#2c3e50', '#d35400', '#c0392b', '#2980b9', '#27ae60',
-                '#f1c40f', '#e67e22', '#9b59b6', '#1abc9c', '#34495e',
-                '#e74c3c', '#f39c12', '#8e44ad', '#16a085', '#2c3e50'
+                '#5e9c6a', '#db6679', '#f0ab55', '#8b6cb8', '#5b8fd9',
+                '#3c70d8', '#e68838', '#a04132', '#6a9da8', '#87c569',
+                '#6d8de8', '#c16fa0', '#a99bc6', '#a44d69', '#b9d0f8',
+                '#5d4ea5', '#f5ad8c', '#5b8fd9', '#db6679', '#a6c589'
             ]
             
             # 绘制剩余网段
@@ -825,55 +869,61 @@ class IPSubnetSplitterApp:
                 
                 # 绘制剩余网段条
                 self.chart_canvas.create_rectangle(x, y, x + bar_width, y + bar_height, 
-                                                   fill=color, outline="#333", width=1)
+                                                   fill=color, outline="", width=0)
                 
                 # 绘制网段信息
                 name = network.get('name', '')
                 usable_addresses = network_range - 2 if network_range > 2 else network_range
                 
-                # 网段信息
+                # 网段信息 - 使用带描边的文字绘制，提高可见度
                 segment_text = f"网段 {i + 1}: {name}"
-                self.chart_canvas.create_text(x + 15, y + bar_height / 2, 
-                                             text=segment_text, font=('微软雅黑', 12), 
-                                             anchor=tk.W, fill="#000000")
+                text_x = x + 15
+                text_y = y + bar_height / 2
+                font = ('微软雅黑', 9, 'bold')  # 使用粗体提高可读性
+                # 使用带描边的文字绘制方法
+                self.draw_text_with_stroke(segment_text, text_x, text_y, font, anchor=tk.W, fill="#ffffff")
                 
-                # 可用地址数
+                # 可用地址数 - 使用带描边的文字绘制，提高可见度
                 address_text = f"可用地址数: {usable_addresses:,}"
-                self.chart_canvas.create_text(x + 250, y + bar_height / 2, 
-                                             text=address_text, font=('微软雅黑', 12), 
-                                             anchor=tk.W, fill="#000000")
+                text_x = x + 250
+                # 使用带描边的文字绘制方法
+                self.draw_text_with_stroke(address_text, text_x, text_y, font, anchor=tk.W, fill="#ffffff")
                 
                 y += bar_height + padding
             
+            # 添加剩余网段和图例之间的虚线分割
+            self.chart_canvas.create_line(x, y, x + chart_width, y, 
+                                         fill="#cccccc", dash=(5, 2), width=1)
+            
             # 绘制图例（参考Web版）
-            legend_y = y + 20
+            legend_y = y + 15
             self.chart_canvas.create_text(x, legend_y, text="图例:", 
-                                         font=('微软雅黑', 14), anchor=tk.W, fill="#34495e")
+                                         font=('微软雅黑', 11), anchor=tk.W, fill="#ffffff")
             
             # 增加图例文字与图例图形之间的间距
-            legend_items_y = legend_y + 35
+            legend_items_y = legend_y + 25
             
             # 父网段图例
             self.chart_canvas.create_rectangle(x, legend_items_y, x + 20, legend_items_y + 15, 
-                                               fill='#95a5a6', outline="#333")
-            self.chart_canvas.create_text(x + 30, legend_items_y + 7, text="父网段", 
-                                         font=('微软雅黑', 12), anchor=tk.W, fill="#34495e")
+                                               fill='#636e72')
+            self.chart_canvas.create_text(x + 30, legend_items_y + 6, text="父网段", 
+                                         font=('微软雅黑', 9), anchor=tk.W, fill="#ffffff")
             
             # 切分网段图例
-            self.chart_canvas.create_rectangle(x + 100, legend_items_y, x + 120, legend_items_y + 15, 
-                                               fill='#3498db', outline="#333")
-            self.chart_canvas.create_text(x + 130, legend_items_y + 7, text="切分网段", 
-                                         font=('微软雅黑', 12), anchor=tk.W, fill="#34495e")
+            self.chart_canvas.create_rectangle(x + 100, legend_items_y, x + 120, legend_items_y + 12, 
+                                               fill='#4a7eb4')
+            self.chart_canvas.create_text(x + 130, legend_items_y + 6, text="切分网段", 
+                                         font=('微软雅黑', 9), anchor=tk.W, fill="#ffffff")
             
-            # 剩余网段图例（显示多彩示例）
-            legend_colors = ['#27ae60', '#e74c3c', '#f39c12', '#8e44ad']
+            # 剩余网段图例（显示多彩示例，匹配高区分度配色方案）
+            legend_colors = ['#5e9c6a', '#db6679', '#f0ab55', '#8b6cb8']
             for j, color in enumerate(legend_colors):
                 self.chart_canvas.create_rectangle(x + 230 + j * 25, legend_items_y, 
-                                                   x + 250 + j * 25, legend_items_y + 15, 
-                                                   fill=color, outline="#333")
+                                                   x + 250 + j * 25, legend_items_y + 12, 
+                                                   fill=color)
             
-            self.chart_canvas.create_text(x + 340, legend_items_y + 7, text="剩余网段(多色)", 
-                                         font=('微软雅黑', 12), anchor=tk.W, fill="#34495e")
+            self.chart_canvas.create_text(x + 340, legend_items_y + 6, text="剩余网段(多色)", 
+                                         font=('微软雅黑', 9), anchor=tk.W, fill="#ffffff")
             
         except Exception as e:
             # 出现错误时显示提示
@@ -881,8 +931,8 @@ class IPSubnetSplitterApp:
             width = self.chart_canvas.winfo_width() or 600
             height = self.chart_canvas.winfo_height() or 400
             title_font = ('微软雅黑', 12, 'bold')
-            self.chart_canvas.create_text(width / 2, height / 2, 
-                                         text="图表绘制失败", font=title_font, fill="red")
+            self.chart_canvas.create_text(width / 2, height / 2,
+                                         text=f"图表绘制失败: {str(e)}", font=title_font, fill="red")
     
 
     
@@ -1055,8 +1105,39 @@ if __name__ == "__main__":
     # 禁止调整窗口宽度，但允许调整高度
     root.resizable(width=False, height=True)
     
-    # 设置窗口图标（可选，如果有图标文件可以添加）
-    # root.iconbitmap("icon.ico")
+    # 设置窗口图标
+    try:
+        import sys
+        import os
+        
+        # 获取图标路径的另一种方式
+        if getattr(sys, 'frozen', False):
+            # 打包后的环境
+            base_path = sys._MEIPASS
+        else:
+            # 开发环境
+            base_path = os.path.abspath('.')
+        
+        icon_path = os.path.join(base_path, 'icon.ico')
+        
+        # 尝试多种图标设置方法
+        if os.path.exists(icon_path):
+            # 方法1: 使用iconbitmap
+            root.iconbitmap(icon_path)
+            
+            # 方法2: 使用wm_iconbitmap
+            root.wm_iconbitmap(icon_path)
+            
+            # 方法3: 使用PIL设置图标（如果可用）
+            try:
+                from PIL import Image, ImageTk
+                img = Image.open(icon_path)
+                photo = ImageTk.PhotoImage(img)
+                root.iconphoto(True, photo)
+            except Exception as e:
+                pass
+    except Exception as e:
+        pass
     
     # 创建应用实例
     app = IPSubnetSplitterApp(root)

@@ -11,7 +11,7 @@ IP子网切分计算器
 4. 执行子网切分
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 import ipaddress
 
@@ -52,16 +52,6 @@ def get_subnet_info(network_str):
     except ValueError as e:
         return {'error': str(e)}
 
-def is_subnet_of(parent, child):
-    """
-    检查child是否是parent的子网
-    """
-    try:
-        parent_net = ipaddress.IPv4Network(parent, strict=False)
-        child_net = ipaddress.IPv4Network(child, strict=False)
-        return child_net.subnet_of(parent_net)
-    except ValueError:
-        return False
 
 def split_subnet(parent_cidr, split_cidr):
     """
