@@ -422,6 +422,14 @@ HTML_TEMPLATE = '''
                                     y += 20; // 保持与父网段一致的风格间距
                                     
                                     // 绘制剩余网段
+                                    // 定义多种颜色用于剩余网段
+                                    var subnetColors = [
+                                        '#27ae60', '#e74c3c', '#f39c12', '#8e44ad', '#16a085',
+                                        '#2c3e50', '#d35400', '#c0392b', '#2980b9', '#27ae60',
+                                        '#f1c40f', '#e67e22', '#9b59b6', '#1abc9c', '#34495e',
+                                        '#e74c3c', '#f39c12', '#8e44ad', '#16a085', '#2c3e50'
+                                    ];
+                                    
                                     for (var i = 0; i < remainingSubnets.length; i++) {
                                         var subnet = remainingSubnets[i];
                                         
@@ -429,8 +437,9 @@ HTML_TEMPLATE = '''
                                         var subnetLogValue = Math.max(logMin, Math.log10(subnet.num_addresses));
                                         var subnetBarWidth = Math.max(minBarWidth, ((subnetLogValue - logMin) / (logMax - logMin)) * availableWidth);
                                         
-                                        // 绘制剩余网段条
-                                        ctx.fillStyle = '#27ae60';
+                                        // 为每个剩余网段选择不同颜色
+                                        var colorIndex = i % subnetColors.length;
+                                        ctx.fillStyle = subnetColors[colorIndex];
                                         ctx.fillRect(x, y, subnetBarWidth, barHeight);
                                         
                                         // 绘制网段信息
@@ -480,13 +489,16 @@ HTML_TEMPLATE = '''
                                     ctx.textAlign = 'left';
                                     ctx.fillText('切分网段', x + 30, y + 42);
                                     
-                                    // 剩余网段图例
-                                    ctx.fillStyle = '#27ae60';
-                                    ctx.fillRect(x + 150, y + 30, 20, 15);
+                                    // 剩余网段图例（显示多彩示例）
+                                    var legendColors = ['#27ae60', '#e74c3c', '#f39c12', '#8e44ad'];
+                                    for (var j = 0; j < legendColors.length; j++) {
+                                        ctx.fillStyle = legendColors[j];
+                                        ctx.fillRect(x + 150 + j * 25, y + 30, 20, 15);
+                                    }
                                     ctx.fillStyle = '#34495e';
                                     ctx.font = '12px Arial';
                                     ctx.textAlign = 'left';
-                                    ctx.fillText('剩余网段', x + 180, y + 42);
+                                    ctx.fillText('剩余网段(多色)', x + 260, y + 42);
                                     
                                     // 调整页面布局
                                     document.getElementById('subnetChartCanvas').parentElement.style.height = requiredHeight + 'px';
