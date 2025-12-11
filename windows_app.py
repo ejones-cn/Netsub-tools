@@ -18,6 +18,13 @@ from ip_subnet_calculator import split_subnet, ip_to_int, get_subnet_info, sugge
 class ColoredNotebook(ttk.Frame):
     def __init__(self, master, style=None, tab_change_callback=None, **kwargs):
         super().__init__(master, **kwargs)
+        
+        # 确保框架能够填充父容器的空间
+        self.pack_propagate(True)
+        self.grid_propagate(True)
+        
+        # 绑定大小变化事件，确保内容区域能正确调整大小
+        self.bind('<Configure>', self.on_configure)
 
         # 保存样式对象
         self.style = style
@@ -39,10 +46,37 @@ class ColoredNotebook(ttk.Frame):
         # 创建内容区域 - 移除箭头指向的灰色框线
         self.content_area = ttk.Frame(self, borderwidth=0, relief="flat")
         self.content_area.pack(side="top", fill="both", expand=True, padx=0, pady=0)
-
+        
+        # 确保content_area能完全填充笔记本控件的空间
+        self.content_area.pack_propagate(True)
+        self.content_area.grid_propagate(True)
+  
         # 标签配置
         self.tabs = []
         self.active_tab = None
+    
+    def get_tab_bar_container(self):
+        """获取标签栏容器"""
+        return self.tab_bar_container
+    
+    def get_tab_bar_right_buttons(self):
+        """获取右侧按钮容器"""
+        return self.tab_bar_right_buttons
+    
+    def on_configure(self, event):
+        """当笔记本控件大小变化时调用，确保内容区域能正确调整大小"""
+        # 确保content_area能完全填充笔记本控件的空间
+        if hasattr(self, 'content_area'):
+            # 更新content_area的大小
+            self.content_area.pack_configure(fill='both', expand=True)
+            
+            # 触发内容区域的重绘
+            self.content_area.update_idletasks()
+            
+            # 如果有选中的标签，确保其内容框架也能正确调整大小
+            if hasattr(self, 'active_tab') and self.active_tab is not None and 0 <= self.active_tab < len(self.tabs):
+                selected_tab = self.tabs[self.active_tab]
+                selected_tab["content"].pack_configure(fill='both', expand=True)
 
     def _update_background_color(self):
         """更新标签栏背景色以匹配父容器"""
@@ -108,6 +142,7 @@ class ColoredNotebook(ttk.Frame):
             pady=5,
             font=("微软雅黑", 10, "normal"),
             foreground="#333333",
+            width=10  # 设置固定宽度，确保所有标签宽度一致
         )  # 深灰色文字
         button.bind("<Button-1>", lambda e, t=len(self.tabs): self.select_tab(t))
         button.pack(side="left", padx=0, pady=0)
@@ -136,7 +171,7 @@ class ColoredNotebook(ttk.Frame):
 
         # 显示选中的标签内容 - 使用更突出的样式：颜色更深、字体加粗、无边框
         selected_tab = self.tabs[tab_index]
-        selected_tab["content"].pack(fill="both", expand=True)
+        selected_tab["content"].pack(fill="both", expand=True, padx=0, pady=0)
 
         # 为选中标签创建更突出的效果：使用更深的颜色、加粗字体
         if selected_tab["color"] == "#e3f2fd":  # 蓝色标签
@@ -635,6 +670,8 @@ class IPSubnetSplitterApp:
         # 子网需求操作按钮框架
         button_frame = ttk.Frame(inner_frame)
         button_frame.grid(row=0, column=2, sticky="nsew")
+        # 设置按钮框架的最小宽度，确保两个按钮大小一致
+        button_frame.configure(width=70)
         
         # 按钮框架内部布局
         button_frame.grid_rowconfigure(0, weight=0)
@@ -676,6 +713,13 @@ class IPSubnetSplitterApp:
         self.planning_notebook = ColoredNotebook(result_frame, style=self.style)
         self.planning_notebook.pack(fill=tk.BOTH, expand=True)
 
+        # 导出规划按钮 - 使用 place 布局手动控制位置
+        export_planning_btn = ttk.Button(
+            result_frame, text="导出规划", command=self.export_planning_result
+        )
+        # 手动指定按钮位置：右上角，距离右边0像素，距离顶部-3像素
+        export_planning_btn.place(relx=1.0, rely=0.0, anchor=tk.NE, x=0, y=-3)
+
         # 已分配子网页面
         self.allocated_frame = ttk.Frame(
             self.planning_notebook.content_area, padding="5", style="LightGreen.TFrame"
@@ -696,7 +740,7 @@ class IPSubnetSplitterApp:
         self.allocated_tree.heading("netmask", text="子网掩码")
         self.allocated_tree.heading("broadcast", text="广播地址")
 
-        # 设置列宽，确保内容显示完整
+        # 设置列宽，确保内容显示完整且所有列都启用拉伸以实现自适应
         self.allocated_tree.column("name", width=120, minwidth=100, stretch=True)
         self.allocated_tree.column("cidr", width=100, minwidth=90, stretch=True)
         self.allocated_tree.column("required", width=70, minwidth=60, stretch=True)  # 调小需求主机数列宽
@@ -728,8 +772,11 @@ class IPSubnetSplitterApp:
         )
         self.planning_remaining_tree = ttk.Treeview(
             self.planning_remaining_frame,
-            columns=("index", "cidr", "network", "netmask", "broadcast", "usable"),
-            show="headings"
+            columns=(
+                "index", "cidr", "network", "netmask", "broadcast", "usable"
+            ),
+            show="headings",
+            height=5  # 设置与其他表格相同的固定高度
         )
 
         # 设置列标题
@@ -740,13 +787,13 @@ class IPSubnetSplitterApp:
         self.planning_remaining_tree.heading("broadcast", text="广播地址")
         self.planning_remaining_tree.heading("usable", text="可用地址数")
 
-        # 设置列宽
-        self.planning_remaining_tree.column("index", width=40, minwidth=30)
-        self.planning_remaining_tree.column("cidr", width=120, minwidth=100)
+        # 设置列宽，所有列都启用拉伸以实现自适应
+        self.planning_remaining_tree.column("index", width=40, minwidth=30, stretch=True)
+        self.planning_remaining_tree.column("cidr", width=120, minwidth=100, stretch=True)
         self.planning_remaining_tree.column("network", width=80, minwidth=70, stretch=True)  # 调小网络地址列宽并启用拉伸
-        self.planning_remaining_tree.column("netmask", width=120, minwidth=100)
-        self.planning_remaining_tree.column("broadcast", width=120, minwidth=100)
-        self.planning_remaining_tree.column("usable", width=80, minwidth=60)
+        self.planning_remaining_tree.column("netmask", width=120, minwidth=100, stretch=True)
+        self.planning_remaining_tree.column("broadcast", width=120, minwidth=100, stretch=True)
+        self.planning_remaining_tree.column("usable", width=80, minwidth=60, stretch=True)
 
         # 添加垂直滚动条
         remaining_v_scrollbar = ttk.Scrollbar(
@@ -772,13 +819,60 @@ class IPSubnetSplitterApp:
         self.planning_notebook.add_tab(
             "剩余网段", self.planning_remaining_frame, "#e3f2fd"
         )  # 浅蓝色
+        
+        # 添加窗口大小变化事件处理，确保表格能自适应宽度
+        self.planning_notebook.content_area.bind('<Configure>', lambda e: self.resize_tables())
+        
+    def resize_tables(self):
+        """调整表格列宽以适应容器大小"""
+        try:
+            # 仅调整规划结果区域的表格，不影响子网需求区域
+            if hasattr(self, 'planning_notebook') and hasattr(self.planning_notebook, 'content_area'):
+                # 获取content_area的当前宽度
+                container_width = self.planning_notebook.content_area.winfo_width()
+                
+                # 调整已分配子网表格
+                if hasattr(self, 'allocated_tree'):
+                    # 获取表格的可用宽度（容器宽度减去边距和滚动条宽度）
+                    tree_width = container_width - 40  # 减去边距和滚动条宽度
+                    
+                    # 计算每列的理想宽度
+                    columns = self.allocated_tree['columns']
+                    num_columns = len(columns)
+                    if num_columns > 0:
+                        # 平均分配宽度，保留一定边距
+                        avg_width = tree_width // num_columns - 2
+                        
+                        # 设置每列宽度
+                        for col in columns:
+                            # 强制设置列宽以适应容器
+                            self.allocated_tree.column(col, width=avg_width)
+                
+                # 调整剩余网段表格
+                if hasattr(self, 'planning_remaining_tree'):
+                    # 获取表格的可用宽度（容器宽度减去边距和滚动条宽度）
+                    tree_width = container_width - 40  # 减去边距和滚动条宽度
+                    
+                    # 计算每列的理想宽度
+                    columns = self.planning_remaining_tree['columns']
+                    num_columns = len(columns)
+                    if num_columns > 0:
+                        # 平均分配宽度，保留一定边距
+                        avg_width = tree_width // num_columns - 2
+                        
+                        # 设置每列宽度
+                        for col in columns:
+                            # 强制设置列宽以适应容器
+                            self.planning_remaining_tree.column(col, width=avg_width)
+        except Exception as e:
+            # 忽略调整过程中的错误
+            pass
+
+
+
 
     def add_subnet_requirement(self):
         """添加子网需求"""
-        # 创建对话框
-        dialog = ttk.Frame(self.root, padding="10")
-        dialog.pack(fill=tk.BOTH, expand=True)
-
         # 创建临时窗口
         temp_window = tk.Toplevel(self.root)
         temp_window.title("添加子网需求")
@@ -786,40 +880,48 @@ class IPSubnetSplitterApp:
         temp_window.transient(self.root)
         temp_window.grab_set()
 
+        # 先隐藏对话框，避免定位过程中的闪现
+        temp_window.withdraw()
+
         # 计算居中位置
-        window_width = 300
-        window_height = 150
+        window_width = 320
+        window_height = 220
         screen_width = temp_window.winfo_screenwidth()
         screen_height = temp_window.winfo_screenheight()
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
+        
+        # 一次性设置对话框的尺寸和位置
         temp_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # 显示对话框
+        temp_window.deiconify()
 
-        # 创建输入控件
-        content_frame = ttk.Frame(temp_window, padding="15")
-        content_frame.pack(fill=tk.BOTH, expand=True)
+        # 创建主内容框架，设置合适的内边距
+        main_frame = ttk.Frame(temp_window, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 设置主框架的列权重，使用3列布局，中间列放表单内容，左右列留白用于居中
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=0)
+        main_frame.columnconfigure(2, weight=0)
+        main_frame.columnconfigure(3, weight=1)
 
-        # 子网名称
-        ttk.Label(content_frame, text="子网名称:", anchor="e").grid(
-            row=0, column=0, sticky=tk.E, pady=(0, 10), padx=(0, 10)
-        )
+        # 子网名称 - 标签在中间列左侧，输入框在中间列右侧
+        ttk.Label(main_frame, text="子网名称:").grid(row=0, column=1, sticky=tk.E, pady=15, padx=(10, 10))
         name_var = tk.StringVar()
-        ttk.Entry(content_frame, textvariable=name_var, width=20).grid(
-            row=0, column=1, sticky=tk.W, pady=(0, 10)
-        )
+        name_entry = ttk.Entry(main_frame, textvariable=name_var, width=20)
+        name_entry.grid(row=0, column=2, sticky=tk.W, pady=15, padx=(0, 10))
 
-        # 主机数量
-        ttk.Label(content_frame, text="主机数量:", anchor="e").grid(
-            row=1, column=0, sticky=tk.E, pady=(0, 10), padx=(0, 10)
-        )
+        # 主机数量 - 标签在中间列左侧，输入框在中间列右侧
+        ttk.Label(main_frame, text="主机数量:").grid(row=1, column=1, sticky=tk.E, pady=15, padx=(10, 10))
         hosts_var = tk.StringVar()
-        ttk.Entry(content_frame, textvariable=hosts_var, width=20).grid(
-            row=1, column=1, sticky=tk.W, pady=(0, 10)
-        )
+        hosts_entry = ttk.Entry(main_frame, textvariable=hosts_var, width=20)
+        hosts_entry.grid(row=1, column=2, sticky=tk.W, pady=15, padx=(0, 10))
 
-        # 按钮框架
-        button_frame = ttk.Frame(content_frame)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+        # 按钮框架 - 横跨所有列，确保按钮组居中
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, columnspan=4, pady=20)
 
         def save_requirement():
             """保存子网需求"""
@@ -838,12 +940,13 @@ class IPSubnetSplitterApp:
             self.requirements_tree.insert("", tk.END, values=(name, hosts))
             temp_window.destroy()
 
-        # 保存按钮
-        ttk.Button(button_frame, text="保存", command=save_requirement).pack(
-            side=tk.LEFT, padx=(0, 10)
-        )
-        # 取消按钮
-        ttk.Button(button_frame, text="取消", command=temp_window.destroy).pack(side=tk.LEFT)
+        # 创建按钮并在按钮框架中居中
+        save_button = ttk.Button(button_frame, text="保存", command=save_requirement, width=10)
+        cancel_button = ttk.Button(button_frame, text="取消", command=temp_window.destroy, width=10)
+        
+        # 使用pack布局让按钮在按钮框架中居中显示
+        save_button.pack(side=tk.LEFT, padx=(0, 15))
+        cancel_button.pack(side=tk.LEFT)
 
     def delete_subnet_requirement(self):
         """删除选中的子网需求"""
@@ -2014,6 +2117,427 @@ class IPSubnetSplitterApp:
             # 显示导出错误信息
             self.show_result(f"导出失败: {str(e)}", error=True)
 
+    def export_planning_result(self):
+        """导出子网规划结果为多种格式（CSV、JSON、TXT、PDF、Excel）"""
+        try:
+            # 使用文件对话框，支持多种格式
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[
+                    ("CSV文件", "*.csv"),
+                    ("JSON文件", "*.json"),
+                    ("文本文件", "*.txt"),
+                    ("PDF文件", "*.pdf"),
+                    ("Excel文件", "*.xlsx"),
+                    ("所有文件", "*.*"),
+                ],
+                title="保存子网规划结果",
+                initialdir="",
+            )
+
+            if not file_path:
+                return  # 用户取消了保存
+
+            # 获取文件扩展名
+            import os
+
+            file_ext = os.path.splitext(file_path)[1].lower()
+
+            # 准备数据
+            # 获取已分配子网的列标题
+            allocated_headers = [
+                self.allocated_tree.heading(col, "text") for col in self.allocated_tree["columns"]
+            ]
+            allocated_data = []
+            for item in self.allocated_tree.get_children():
+                values = self.allocated_tree.item(item, "values")
+                if values:
+                    allocated_data.append(dict(zip(allocated_headers, values)))
+
+            # 获取剩余网段的列标题
+            remaining_headers = [
+                self.planning_remaining_tree.heading(col, "text") for col in self.planning_remaining_tree["columns"]
+            ]
+            remaining_data = []
+            for item in self.planning_remaining_tree.get_children():
+                values = self.planning_remaining_tree.item(item, "values")
+                if values:
+                    remaining_data.append(dict(zip(remaining_headers, values)))
+
+            # 根据文件扩展名选择导出格式
+            if file_ext == ".json":
+                # JSON格式导出
+                import json
+
+                export_data = {
+                    "allocated_subnets": allocated_data,
+                    "remaining_subnets": remaining_data
+                }
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+            elif file_ext == ".txt":
+                # 文本格式导出
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write("已分配子网信息\n")
+                    f.write("=" * 80 + "\n")
+
+                    # 写入已分配子网列标题
+                    for header in allocated_headers:
+                        f.write(f"{header:<15}")
+                    f.write("\n")
+                    f.write("-" * 80 + "\n")
+
+                    # 写入已分配子网数据
+                    for item in self.allocated_tree.get_children():
+                        values = self.allocated_tree.item(item, "values")
+                        for value in values:
+                            f.write(f"{str(value):<15}")
+                        f.write("\n")
+
+                    f.write("\n\n剩余网段信息\n")
+                    f.write("=" * 80 + "\n")
+
+                    # 写入剩余网段列标题
+                    for header in remaining_headers:
+                        f.write(f"{header:<15}")
+                    f.write("\n")
+                    f.write("-" * 80 + "\n")
+
+                    # 写入剩余网段数据
+                    for item in self.planning_remaining_tree.get_children():
+                        values = self.planning_remaining_tree.item(item, "values")
+                        for value in values:
+                            f.write(f"{str(value):<15}")
+                        f.write("\n")
+
+            elif file_ext == ".pdf":
+                # PDF格式导出
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.platypus import (
+                    SimpleDocTemplate,
+                    Table,
+                    TableStyle,
+                    Paragraph,
+                    Spacer,
+                    PageBreak,
+                )
+                from reportlab.lib import colors
+                from reportlab.pdfbase import pdfmetrics
+                from reportlab.pdfbase.ttfonts import TTFont
+                from reportlab.lib.units import cm
+                from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+                import sys
+                import time
+
+                # 注册中文字体函数
+                def register_chinese_fonts():
+                    # 尝试查找系统中的中文字体
+                    font_path = None
+                    font_name = None
+
+                    # Windows系统字体路径
+                    if sys.platform == "win32":
+                        font_dir = "C:\\Windows\\Fonts"
+                        if os.path.exists(font_dir):
+                            # 检查常用中文字体（包含.ttf和.ttc格式）
+                            font_candidates = [
+                                ("simhei.ttf", "SimHei"),  # 黑体
+                                ("simsun.ttc", "SimSun"),  # 宋体
+                                ("msyh.ttf", "Microsoft YaHei"),  # 微软雅黑
+                                ("msyhbd.ttf", "Microsoft YaHei Bold"),  # 微软雅黑粗体
+                                ("msyhui.ttf", "Microsoft YaHei UI"),
+                                ("stsong.ttf", "STSong"),  # 华文宋体
+                                ("stheiti.ttf", "STHeiti"),  # 华文黑体
+                                ("stkaiti.ttf", "STKaiti"),  # 华文楷体
+                            ]
+
+                            # 查找所有可用的字体，优先使用黑体
+                            for font_file, font_family in font_candidates:
+                                potential_path = os.path.join(font_dir, font_file)
+                                if os.path.exists(potential_path):
+                                    font_path = potential_path
+                                    font_name = font_family
+                                    # 如果找到黑体，直接使用
+                                    if font_file.lower() == "simhei.ttf":
+                                        break
+
+                    # 如果找到中文字体，注册它
+                    if font_path:
+                        try:
+                            # 注册字体
+                            pdfmetrics.registerFont(TTFont("ChineseFont", font_path))
+                            return True
+                        except Exception as e:
+                            print(f"注册字体失败: {e}")
+                            return False
+                    else:
+                        print("未找到可用的中文字体")
+                        return False
+
+                # 注册中文字体
+                has_chinese_font = register_chinese_fonts()
+
+                # 自定义页脚函数
+                def add_footer(canvas, doc):
+                    canvas.saveState()
+                    # 设置页脚字体
+                    if has_chinese_font:
+                        canvas.setFont("ChineseFont", 9)
+                    else:
+                        canvas.setFont("Helvetica", 9)
+                    # 添加页脚文本
+                    footer_text = f"导出时间: {time.strftime('%Y-%m-%d %H:%M:%S')} | 第 {doc.page} 页"
+                    canvas.drawString(2.5 * cm, 1.5 * cm, footer_text)
+                    canvas.restoreState()
+
+                # 创建PDF文档，设置页边距
+                page_width, page_height = A4
+                margins = (2.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm)  # 左、右、上、下
+                doc = SimpleDocTemplate(
+                    file_path, 
+                    pagesize=A4,
+                    leftMargin=margins[0],
+                    rightMargin=margins[1],
+                    topMargin=margins[2],
+                    bottomMargin=margins[3],
+                    showBoundary=False
+                )
+                elements = []
+                styles = getSampleStyleSheet()
+
+                # 创建支持中文的标题样式
+                title_style = ParagraphStyle(
+                    "ChineseTitle",
+                    parent=styles["Title"],
+                    fontName="ChineseFont" if has_chinese_font else "Helvetica-Bold",
+                    fontSize=20,
+                    textColor=colors.HexColor("#2c3e50"),  # 深蓝灰色
+                    alignment=TA_CENTER,  # 居中对齐
+                    spaceAfter=20,
+                )
+
+                # 创建支持中文的一级标题样式
+                heading2_style = ParagraphStyle(
+                    "ChineseHeading2",
+                    parent=styles["Heading2"],
+                    fontName="ChineseFont" if has_chinese_font else "Helvetica-Bold",
+                    fontSize=16,
+                    textColor=colors.HexColor("#34495e"),  # 深灰色
+                    alignment=TA_LEFT,
+                    spaceBefore=20,
+                    spaceAfter=12,
+                )
+
+                # 创建支持中文的正文样式
+                normal_style = ParagraphStyle(
+                    "ChineseNormal",
+                    parent=styles["Normal"],
+                    fontName="ChineseFont" if has_chinese_font else "Helvetica",
+                    fontSize=11,
+                    textColor=colors.HexColor("#34495e"),  # 深灰色
+                    spaceAfter=5,
+                )
+
+                # 创建支持中文的表格文本样式
+                table_text_style = ParagraphStyle(
+                    "ChineseTableText",
+                    parent=styles["Normal"],
+                    fontName="ChineseFont" if has_chinese_font else "Helvetica",
+                    fontSize=10,
+                    alignment=TA_CENTER,  # 居中对齐
+                )
+
+                # 添加标题
+                elements.append(Paragraph("IP子网分割工具 - 子网规划结果", title_style))
+                elements.append(Spacer(1, 10))
+
+                # 添加导出时间信息
+                export_time = time.strftime("%Y年%m月%d日 %H:%M:%S")
+                elements.append(Paragraph(f"导出时间: {export_time}", normal_style))
+                elements.append(Spacer(1, 15))
+
+                # 添加已分配子网信息
+                elements.append(Paragraph("已分配子网信息", heading2_style))
+                allocated_table_data = [[Paragraph(h, table_text_style) for h in allocated_headers]]
+                for item in self.allocated_tree.get_children():
+                    values = self.allocated_tree.item(item, "values")
+                    if values:
+                        # 将表格中的中文文本用Paragraph包裹，使用支持中文的样式
+                        allocated_table_data.append([
+                            Paragraph(str(v), table_text_style) for v in values
+                        ])
+
+                if len(allocated_table_data) > 1:
+                    # 计算表格宽度（页宽减去左右边距）
+                    table_width = page_width - margins[0] - margins[1]
+                    # 根据数据长度调整各列宽度，避免换行
+                    # 子网名称 | CIDR | 需求主机数 | 可用主机数 | 网络地址 | 子网掩码 | 广播地址
+                    col_widths = [100, 90, 60, 60, 80, 110, 80]  # 单位：pt (增加CIDR列宽到90pt)
+                    
+                    allocated_table = Table(allocated_table_data, colWidths=col_widths)
+                    allocated_table.setStyle(
+                        TableStyle(
+                            [
+                                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3498db")),  # 蓝色表头
+                                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                                ("ALIGN", (0, 0), (-1, -1), "CENTER"),  # 所有列居中对齐
+                                ("FONTNAME", (0, 0), (-1, 0), "ChineseFont" if has_chinese_font else "Helvetica-Bold"),
+                                ("FONTSIZE", (0, 0), (-1, 0), 11),
+                                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                                ("TOPPADDING", (0, 0), (-1, 0), 8),
+                                ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),  # 浅灰色边框
+                                ("BOX", (0, 0), (-1, -1), 1.5, colors.HexColor("#3498db")),  # 蓝色外框
+                                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8f9fa")),  # 浅灰色背景
+                                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f4f8")]),  # 交替行颜色
+                                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),  # 垂直居中
+                                ("LEFTPADDING", (0, 0), (-1, -1), 8),  # 左内边距
+                                ("RIGHTPADDING", (0, 0), (-1, -1), 8),  # 右内边距
+                                ("TOPPADDING", (0, 1), (-1, -1), 6),  # 上内边距
+                                ("BOTTOMPADDING", (0, 1), (-1, -1), 6),  # 下内边距
+                            ]
+                        )
+                    )
+                    elements.append(allocated_table)
+                else:
+                    elements.append(Paragraph("无已分配子网信息", normal_style))
+
+                elements.append(Spacer(1, 20))
+
+                # 添加剩余网段信息
+                elements.append(Paragraph("剩余网段信息", heading2_style))
+                remaining_table_data = [[Paragraph(h, table_text_style) for h in remaining_headers]]
+                for item in self.planning_remaining_tree.get_children():
+                    values = self.planning_remaining_tree.item(item, "values")
+                    if values:
+                        # 将表格中的中文文本用Paragraph包裹，使用支持中文的样式
+                        remaining_table_data.append([
+                            Paragraph(str(v), table_text_style) for v in values
+                        ])
+
+                if len(remaining_table_data) > 1:
+                    # 计算表格宽度（页宽减去左右边距）
+                    table_width = page_width - margins[0] - margins[1]
+                    # 根据数据长度调整各列宽度，避免换行
+                    # 序号 | CIDR | 网络地址 | 子网掩码 | 广播地址 | 可用地址数
+                    col_widths = [40, 90, 80, 110, 80, 60]  # 单位：pt (增加CIDR列宽到90pt)
+                    
+                    remaining_table = Table(remaining_table_data, colWidths=col_widths)
+                    remaining_table.setStyle(
+                        TableStyle(
+                            [
+                                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#27ae60")),  # 绿色表头
+                                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                                ("ALIGN", (0, 0), (-1, -1), "CENTER"),  # 所有列居中对齐
+                                ("FONTNAME", (0, 0), (-1, 0), "ChineseFont" if has_chinese_font else "Helvetica-Bold"),
+                                ("FONTSIZE", (0, 0), (-1, 0), 11),
+                                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                                ("TOPPADDING", (0, 0), (-1, 0), 8),
+                                ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),  # 浅灰色边框
+                                ("BOX", (0, 0), (-1, -1), 1.5, colors.HexColor("#27ae60")),  # 绿色外框
+                                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8f9fa")),  # 浅灰色背景
+                                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f4f8")]),  # 交替行颜色
+                                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),  # 垂直居中
+                                ("LEFTPADDING", (0, 0), (-1, -1), 8),  # 左内边距
+                                ("RIGHTPADDING", (0, 0), (-1, -1), 8),  # 右内边距
+                                ("TOPPADDING", (0, 1), (-1, -1), 6),  # 上内边距
+                                ("BOTTOMPADDING", (0, 1), (-1, -1), 6),  # 下内边距
+                            ]
+                        )
+                    )
+                    elements.append(remaining_table)
+                else:
+                    elements.append(Paragraph("无剩余网段信息", normal_style))
+
+                # 生成PDF，添加页脚
+                doc.build(elements, onFirstPage=add_footer, onLaterPages=add_footer)
+
+            elif file_ext == ".xlsx":
+                # Excel格式导出
+                from openpyxl import Workbook
+                from openpyxl.styles import Font, Alignment
+
+                # 创建Excel工作簿
+                wb = Workbook()
+
+                # 添加已分配子网工作表
+                ws1 = wb.active
+                ws1.title = "已分配子网"
+
+                # 添加已分配子网表头
+                ws1.append(allocated_headers)
+
+                # 设置表头样式
+                for cell in ws1[1]:
+                    cell.font = Font(bold=True)
+                    cell.alignment = Alignment(horizontal="center")
+
+                # 添加已分配子网数据
+                for item in self.allocated_tree.get_children():
+                    values = self.allocated_tree.item(item, "values")
+                    if values:
+                        ws1.append(list(values))
+
+                # 调整列宽
+                for col, header in enumerate(allocated_headers, 1):
+                    ws1.column_dimensions[chr(64 + col)].width = 20
+
+                # 添加剩余网段工作表
+                ws2 = wb.create_sheet(title="剩余网段")
+
+                # 添加剩余网段表头
+                ws2.append(remaining_headers)
+
+                # 设置表头样式
+                for cell in ws2[1]:
+                    cell.font = Font(bold=True)
+                    cell.alignment = Alignment(horizontal="center")
+
+                # 添加剩余网段数据
+                for item in self.planning_remaining_tree.get_children():
+                    values = self.planning_remaining_tree.item(item, "values")
+                    if values:
+                        ws2.append([str(v) for v in values])
+
+                # 调整列宽
+                for col, header in enumerate(remaining_headers, 1):
+                    ws2.column_dimensions[chr(64 + col)].width = 20
+
+                # 保存Excel文件
+                wb.save(file_path)
+
+            else:  # 默认CSV格式
+                # CSV格式导出，使用utf-8-sig编码解决中文乱码问题
+                with open(file_path, "w", newline="", encoding="utf-8-sig") as f:
+                    # 写入已分配子网信息
+                    f.write("已分配子网信息,\n")
+                    f.write(",".join(allocated_headers) + "\n")
+
+                    for item in self.allocated_tree.get_children():
+                        values = self.allocated_tree.item(item, "values")
+                        if values:
+                            f.write(",".join(map(str, values)) + "\n")
+
+                    # 写入一个空行作为分隔
+                    f.write("\n")
+
+                    # 写入剩余网段信息
+                    f.write("剩余网段信息,\n")
+                    f.write(",".join(remaining_headers) + "\n")
+
+                    for item in self.planning_remaining_tree.get_children():
+                        values = self.planning_remaining_tree.item(item, "values")
+                        if values:
+                            f.write(",".join(map(str, values)) + "\n")
+
+            # 显示导出成功信息
+            self.show_result(f"规划结果已成功导出到: {file_path}", keep_data=True)
+
+        except Exception as e:
+            # 显示导出错误信息
+            self.show_result(f"导出失败: {str(e)}", error=True)
+
     def clear_result(self):
         """清空结果表格和图表"""
         # 清空切分网段信息表格
@@ -2053,19 +2577,14 @@ class IPSubnetSplitterApp:
         # 创建对话框窗口
         about_window = tk.Toplevel(self.root)
         about_window.title(f"关于 {self.app_name}")
-        about_window.geometry("350x220")  # 调大窗口高度
         about_window.resizable(False, False)
 
         # 确保对话框在主窗口之上
         about_window.transient(self.root)
         about_window.grab_set()
 
-        # 计算主窗口中心位置并放置窗口（跟随主窗口位置变化）
-        about_window.update_idletasks()
-
-        # 获取对话框的尺寸
-        dialog_width = about_window.winfo_width()
-        dialog_height = about_window.winfo_height()
+        # 先隐藏对话框，避免定位过程中的闪现
+        about_window.withdraw()
 
         # 获取主窗口的位置和尺寸
         main_x = self.root.winfo_x()
@@ -2073,12 +2592,19 @@ class IPSubnetSplitterApp:
         main_width = self.root.winfo_width()
         main_height = self.root.winfo_height()
 
+        # 设置对话框尺寸
+        dialog_width = 350
+        dialog_height = 220
+
         # 计算对话框在主窗口中心的位置
         x = main_x + (main_width // 2) - (dialog_width // 2)
         y = main_y + (main_height // 2) - (dialog_height // 2)
 
-        # 设置对话框位置
+        # 一次性设置对话框的尺寸和位置
         about_window.geometry("{}x{}+{}+{}".format(dialog_width, dialog_height, x, y))
+        
+        # 显示对话框
+        about_window.deiconify()
 
         # 创建内容框架，移除所有边框和焦点指示
         content_frame = ttk.Frame(
