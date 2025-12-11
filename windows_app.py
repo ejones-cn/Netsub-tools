@@ -8,7 +8,7 @@
 # 所有导入语句放在最顶部
 import tkinter as tk
 import math
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 
 # 导入自定义模块
 from ip_subnet_calculator import split_subnet, ip_to_int, get_subnet_info, suggest_subnet_planning
@@ -16,8 +16,10 @@ from ip_subnet_calculator import split_subnet, ip_to_int, get_subnet_info, sugge
 
 # 自定义的ColoredNotebook类，支持每个标签不同颜色
 class ColoredNotebook(ttk.Frame):
-    def __init__(self, master, style=None, tab_change_callback=None, **kwargs):
+    def __init__(self, master, style=None, tab_change_callback=None, is_top_level=False, **kwargs):
         super().__init__(master, **kwargs)
+        # 标识是否为顶级标签页
+        self.is_top_level = is_top_level
         
         # 确保框架能够填充父容器的空间
         self.pack_propagate(True)
@@ -30,6 +32,23 @@ class ColoredNotebook(ttk.Frame):
         self.style = style
         # 保存标签页切换回调函数
         self.tab_change_callback = tab_change_callback
+        
+        # 为每个实例生成唯一ID，用于创建唯一的样式名称
+        self.unique_id = id(self)
+        
+        # 为每个Notebook实例创建唯一的样式名称
+        self.light_blue_style = f"LightBlue{self.unique_id}.TFrame"
+        self.light_green_style = f"LightGreen{self.unique_id}.TFrame"
+        self.light_orange_style = f"LightOrange{self.unique_id}.TFrame"
+        self.light_purple_style = f"LightPurple{self.unique_id}.TFrame"
+        self.light_pink_style = f"LightPink{self.unique_id}.TFrame"
+        
+        # 初始化这些样式
+        self.style.configure(self.light_blue_style, background="#e3f2fd")
+        self.style.configure(self.light_green_style, background="#e8f5e9")
+        self.style.configure(self.light_orange_style, background="#fff3e0")
+        self.style.configure(self.light_purple_style, background="#f3e5f5")
+        self.style.configure(self.light_pink_style, background="#fce4ec")
 
         # 创建标签栏容器，使用ttk.Frame并继承默认样式
         self.tab_bar_container = ttk.Frame(self)
@@ -62,6 +81,26 @@ class ColoredNotebook(ttk.Frame):
     def get_tab_bar_right_buttons(self):
         """获取右侧按钮容器"""
         return self.tab_bar_right_buttons
+        
+    def get_light_blue_style(self):
+        """获取浅蓝色样式名称"""
+        return self.light_blue_style
+        
+    def get_light_green_style(self):
+        """获取浅绿色样式名称"""
+        return self.light_green_style
+        
+    def get_light_orange_style(self):
+        """获取浅橙色样式名称"""
+        return self.light_orange_style
+        
+    def get_light_purple_style(self):
+        """获取浅紫色样式名称"""
+        return self.light_purple_style
+    
+    def get_light_pink_style(self):
+        """获取淡粉色样式名称"""
+        return self.light_pink_style
     
     def on_configure(self, event):
         """当笔记本控件大小变化时调用，确保内容区域能正确调整大小"""
@@ -77,6 +116,9 @@ class ColoredNotebook(ttk.Frame):
             if hasattr(self, 'active_tab') and self.active_tab is not None and 0 <= self.active_tab < len(self.tabs):
                 selected_tab = self.tabs[self.active_tab]
                 selected_tab["content"].pack_configure(fill='both', expand=True)
+            
+            # 更新背景色以匹配result_frame
+            self._update_background_to_result_frame_color()
 
     def _update_background_color(self):
         """更新标签栏背景色以匹配父容器"""
@@ -103,48 +145,159 @@ class ColoredNotebook(ttk.Frame):
         self.tab_bar.config(bg=bg_color)
         self.tab_bar_spacer.config(bg=bg_color)
 
+    def _on_tab_mouse_down(self, button, color):
+        """当鼠标按下标签页时，更新内容区域背景色为按下状态颜色"""
+        # 只有当前按下的标签页是激活标签页时才更新内容区域背景色
+        if hasattr(self, "active_tab") and button.tab_index == self.active_tab:
+            # 根据标签颜色设置内容区域背景色为按下状态颜色（使用之前的激活颜色，较暗）
+            if color == "#e3f2fd":  # 蓝色标签
+                active_color = "#bbdefb"  # 按下状态颜色（较暗）
+                self.style.configure(self.light_blue_style, background=active_color)
+            elif color == "#e8f5e9":  # 绿色标签
+                active_color = "#c8e6c9"  # 按下状态颜色（较暗）
+                self.style.configure(self.light_green_style, background=active_color)
+            elif color == "#fff3e0":  # 橙色标签
+                active_color = "#ffe0b2"  # 按下状态颜色（较暗）
+                self.style.configure(self.light_orange_style, background=active_color)
+            elif color == "#f3e5f5":  # 紫色标签
+                active_color = "#e1bee7"  # 按下状态颜色（较暗）
+                self.style.configure(self.light_purple_style, background=active_color)
+            elif color == "#fce4ec":  # 粉色标签
+                active_color = "#f8bbd0"  # 按下状态颜色（较暗）
+                self.style.configure(self.light_pink_style, background=active_color)
+            elif color == "#e0f2f1":  # 青色标签
+                active_color = "#b2dfdb"  # 按下状态颜色（较暗）
+                self.style.configure(self.light_blue_style, background=active_color)
+
+    def _on_tab_mouse_up(self, button, color):
+        """当鼠标释放标签页时，恢复内容区域背景色为激活状态颜色"""
+        # 只有当前释放的标签页是激活标签页时才更新内容区域背景色
+        if hasattr(self, "active_tab") and button.tab_index == self.active_tab:
+            # 根据标签颜色设置内容区域背景色为激活状态颜色（使用更亮的颜色）
+            if color == "#e3f2fd":  # 蓝色标签
+                active_color = "#90caf9"  # 激活状态颜色（更亮）
+                self.style.configure(self.light_blue_style, background=active_color)
+            elif color == "#e8f5e9":  # 绿色标签
+                active_color = "#a5d6a7"  # 激活状态颜色（更亮）
+                self.style.configure(self.light_green_style, background=active_color)
+            elif color == "#fff3e0":  # 橙色标签
+                active_color = "#ffcc80"  # 激活状态颜色（更亮）
+                self.style.configure(self.light_orange_style, background=active_color)
+            elif color == "#f3e5f5":  # 紫色标签
+                active_color = "#ce93d8"  # 激活状态颜色（更亮）
+                self.style.configure(self.light_purple_style, background=active_color)
+            elif color == "#fce4ec":  # 粉色标签
+                active_color = "#f48fb1"  # 激活状态颜色（更亮）
+                self.style.configure(self.light_pink_style, background=active_color)
+            elif color == "#e0f2f1":  # 青色标签
+                active_color = "#80deea"  # 激活状态颜色（更亮）
+                self.style.configure(self.light_blue_style, background=active_color)
+
     def _update_background_to_result_frame_color(self):
         """更新标签栏背景色以匹配result_frame"""
         try:
-            # 获取父容器（result_frame）的类名
-            parent_class = self.master.winfo_class()
-
-            # 对于ttk组件，使用style.lookup获取背景色
-            bg_color = self.style.lookup(parent_class, "background")
-
-            # 如果获取的背景色无效，尝试获取系统默认的ttk.Frame背景色
+            # 直接获取父容器的背景色，而不是通过style.lookup
+            # 对于ttk组件，我们需要先获取其内部的label或content组件
+            bg_color = None
+            
+            # 尝试多种方式获取父容器的背景色
+            if hasattr(self.master, 'winfo_children'):
+                # 获取父容器的子组件
+                children = self.master.winfo_children()
+                for child in children:
+                    # 尝试从子组件获取背景色
+                    try:
+                        if hasattr(child, 'cget'):
+                            child_bg = child.cget("background")
+                            if child_bg and not child_bg.startswith("system."):
+                                bg_color = child_bg
+                                break
+                    except:
+                        continue
+            
+            # 如果无法从子组件获取背景色，尝试直接从父容器获取
+            if not bg_color or bg_color.startswith("system."):
+                try:
+                    bg_color = self.master.cget("background")
+                except:
+                    pass
+            
+            # 如果还是无法获取背景色，使用默认的背景色
             if not bg_color or bg_color.startswith("system."):
                 bg_color = self.style.lookup("TFrame", "background")
 
-            # 将背景色应用到所有相关组件
-            self.tab_bar_container.config(bg=bg_color)
-            self.tab_bar.config(bg=bg_color)
-            self.tab_bar_spacer.config(bg=bg_color)
+            # 使用style来设置ttk.Frame的背景色，为每个实例创建唯一的样式名称
+            temp_style_name = f"TempColoredNotebookStyle{self.unique_id}.TFrame"
+            self.style.configure(temp_style_name, background=bg_color)
+            
+            # 应用样式到所有ttk.Frame组件
+            self.tab_bar_container.configure(style=temp_style_name)
+            self.tab_bar.configure(style=temp_style_name)
+            self.tab_bar_spacer.configure(style=temp_style_name)
+            self.content_area.configure(style=temp_style_name)
 
         except Exception as e:
-            # 回退到浅灰色背景
-            self.tab_bar_container.config(bg="#f0f0f0")
-            self.tab_bar.config(bg="#f0f0f0")
-            self.tab_bar_spacer.config(bg="#f0f0f0")
+            # 发生错误时，不设置自定义背景色，使用默认样式
+            pass
 
     def add_tab(self, label, content_frame, color="#e0e0e0"):
         """添加一个新标签"""
         tab = {"label": label, "content": content_frame, "color": color, "button": None}
 
         # 创建标签按钮 - 移除边框和间距，使标签栏更好地融入背景
-        button = tk.Button(
-            self.tab_bar,
-            text=label,
-            bg=color,
-            relief="flat",
-            borderwidth=0,
-            padx=12,
-            pady=5,
-            font=("微软雅黑", 10, "normal"),
-            foreground="#333333",
-            width=10  # 设置固定宽度，确保所有标签宽度一致
-        )  # 深灰色文字
+        # 设置初始样式参数
+        button_params = {
+            "text": label,
+            "bg": color,
+            "relief": "flat",
+            "borderwidth": 0,
+            "padx": 12,
+            "pady": 5,
+            "font": ("微软雅黑", 10, "normal"),
+            "width": 10  # 设置固定宽度，确保所有标签宽度一致
+        }
+        
+        # 根据是否为顶级标签页设置不同的文字颜色和鼠标按下状态颜色
+        if self.is_top_level:
+            # 顶级标签页：默认深灰色文字，鼠标按下时更亮的橙色背景和深灰色文字
+            button_params["foreground"] = "#333333"  # 默认深灰色文字
+            button_params["activebackground"] = "#ffb74d"  # 亮橙色背景（比激活状态#ff9800更亮）
+            button_params["activeforeground"] = "#333333"  # 深灰色文字
+        else:
+            # 内部标签页：默认深灰色文字，鼠标按下时使用比选中状态更亮的颜色和深灰色文字
+            button_params["foreground"] = "#333333"  # 默认深灰色文字
+            # 为内部标签页设置鼠标按下状态颜色（现在使用之前的激活状态颜色，较暗）
+            if color == "#e3f2fd":  # 蓝色标签
+                button_params["activebackground"] = "#bbdefb"  # 之前的激活状态颜色
+            elif color == "#e8f5e9":  # 绿色标签
+                button_params["activebackground"] = "#c8e6c9"  # 之前的激活状态颜色
+            elif color == "#fff3e0":  # 橙色标签
+                button_params["activebackground"] = "#ffe0b2"  # 之前的激活状态颜色
+            elif color == "#f3e5f5":  # 紫色标签
+                button_params["activebackground"] = "#e1bee7"  # 之前的激活状态颜色
+            elif color == "#fce4ec":  # 粉色标签
+                button_params["activebackground"] = "#f8bbd0"  # 之前的激活状态颜色
+            elif color == "#e0f2f1":  # 青色标签
+                button_params["activebackground"] = "#b2dfdb"  # 之前的激活状态颜色
+            else:  # 默认
+                button_params["activebackground"] = "#e1bee7"  # 之前的激活状态颜色
+            button_params["activeforeground"] = "#333333"  # 深灰色文字
+        
+        button = tk.Button(self.tab_bar, **button_params)
+        
+        # 保存按钮对应的标签索引和颜色信息，以便在事件处理中使用
+        button.tab_index = len(self.tabs)
+        button.tab_color = color
+        
+        # 绑定标签页切换事件
         button.bind("<Button-1>", lambda e, t=len(self.tabs): self.select_tab(t))
+        
+        # 只有内部标签页需要为鼠标按下/释放添加内容区域背景色变化效果
+        if not self.is_top_level:
+            # 绑定鼠标按下事件 - 更新内容区域背景色为按下状态颜色
+            button.bind("<Button-1>", lambda e, c=color: self._on_tab_mouse_down(e.widget, c), add="+")
+            # 绑定鼠标释放事件 - 恢复内容区域背景色为激活状态颜色
+            button.bind("<ButtonRelease-1>", lambda e, c=color: self._on_tab_mouse_up(e.widget, c), add="+")
         button.pack(side="left", padx=0, pady=0)
 
         tab["button"] = button
@@ -153,6 +306,13 @@ class ColoredNotebook(ttk.Frame):
         # 如果是第一个标签，自动选中
         if len(self.tabs) == 1:
             self.select_tab(0)
+        else:
+            # 确保所有标签页都应用正确的样式
+            current_active_tab = getattr(self, "active_tab", 0)
+            self.select_tab(current_active_tab)
+        
+        # 更新背景色以匹配result_frame
+        self._update_background_to_result_frame_color()
 
     def select_tab(self, tab_index):
         """选中一个标签"""
@@ -162,42 +322,80 @@ class ColoredNotebook(ttk.Frame):
         # 隐藏所有内容
         for tab in self.tabs:
             tab["content"].pack_forget()
-            tab["button"].config(
-                relief="flat",
-                bg=tab["color"],
-                font=("微软雅黑", 10, "normal"),
-                foreground="#333333",
-            )
+            
+            # 根据是否为顶级标签页应用不同的非激活样式
+            if self.is_top_level:
+                # 顶级标签页非激活状态：灰底深灰色文字不加粗
+                tab["button"].config(
+                    relief="flat",
+                    bg="#808080",  # 灰色背景
+                    font=("微软雅黑", 10, "normal"),
+                    foreground="#333333",  # 默认深灰色文字
+                )
+            else:
+                # 内部标签页非激活状态：保持原有背景色，深灰色文字
+                tab["button"].config(
+                    relief="flat",
+                    bg=tab["color"],
+                    font=("微软雅黑", 10, "normal"),
+                    foreground="#333333",  # 默认深灰色文字
+                )
 
-        # 显示选中的标签内容 - 使用更突出的样式：颜色更深、字体加粗、无边框
+        # 显示选中的标签内容
         selected_tab = self.tabs[tab_index]
         selected_tab["content"].pack(fill="both", expand=True, padx=0, pady=0)
+        
+        # 更新当前激活的标签页索引
+        self.active_tab = tab_index
 
-        # 为选中标签创建更突出的效果：使用更深的颜色、加粗字体
-        if selected_tab["color"] == "#e3f2fd":  # 蓝色标签
-            selected_color = "#bbdefb"
-        elif selected_tab["color"] == "#e8f5e9":  # 绿色标签
-            selected_color = "#c8e6c9"
-        elif selected_tab["color"] == "#fff3e0":  # 橙色标签
-            selected_color = "#ffe0b2"
-        else:  # 紫色标签
-            selected_color = "#e1bee7"
+        # 根据是否为顶级标签页应用不同的激活样式
+        if self.is_top_level:
+            # 顶级标签页激活状态：橙底黑字并加粗
+            selected_tab["button"].config(
+                relief="flat", 
+                bg="#ff9800",  # 橙色背景
+                font=("微软雅黑", 10, "bold"),  # 加粗字体
+                foreground="#000000"  # 黑色文字
+            )
+        else:
+            # 内部标签页激活状态：使用更亮的颜色（之前的鼠标按下颜色）
+            if selected_tab["color"] == "#e3f2fd":  # 蓝色标签
+                selected_color = "#90caf9"  # 更亮的颜色
+            elif selected_tab["color"] == "#e8f5e9":  # 绿色标签
+                selected_color = "#a5d6a7"  # 更亮的颜色
+            elif selected_tab["color"] == "#fff3e0":  # 橙色标签
+                selected_color = "#ffcc80"  # 更亮的颜色
+            elif selected_tab["color"] == "#f3e5f5":  # 紫色标签
+                selected_color = "#ce93d8"  # 更亮的颜色
+            elif selected_tab["color"] == "#fce4ec":  # 粉色标签
+                selected_color = "#f48fb1"  # 更亮的颜色
+            elif selected_tab["color"] == "#e0f2f1":  # 青色标签
+                selected_color = "#80deea"  # 更亮的颜色
+            else:  # 默认
+                selected_color = "#ce93d8"  # 更亮的颜色
 
-        selected_tab["button"].config(
-            relief="flat", bg=selected_color, font=("微软雅黑", 10, "bold"), foreground="#000000"
-        )
+            selected_tab["button"].config(
+                relief="flat", bg=selected_color, font=("微软雅黑", 10, "bold"), foreground="#000000"
+            )
 
         # 更新对应内容框架样式的背景色，使其与选中标签的颜色保持一致
-        if selected_tab["color"] == "#e3f2fd":  # 蓝色标签
-            self.style.configure("LightBlue.TFrame", background=selected_color)
-        elif selected_tab["color"] == "#e8f5e9":  # 绿色标签
-            self.style.configure("LightGreen.TFrame", background=selected_color)
-        elif selected_tab["color"] == "#fff3e0":  # 橙色标签
-            self.style.configure("LightOrange.TFrame", background=selected_color)
-        else:  # 紫色标签
-            self.style.configure("LightPurple.TFrame", background=selected_color)
+        # 只有内部标签页需要更新样式，顶级标签页不需要
+        if not self.is_top_level:
+            if selected_tab["color"] == "#e3f2fd":  # 蓝色标签
+                self.style.configure(self.light_blue_style, background=selected_color)
+            elif selected_tab["color"] == "#e8f5e9":  # 绿色标签
+                self.style.configure(self.light_green_style, background=selected_color)
+            elif selected_tab["color"] == "#fff3e0":  # 橙色标签
+                self.style.configure(self.light_orange_style, background=selected_color)
+            elif selected_tab["color"] == "#f3e5f5":  # 紫色标签
+                self.style.configure(self.light_purple_style, background=selected_color)
+            elif selected_tab["color"] == "#fce4ec":  # 粉色标签
+                self.style.configure(self.light_pink_style, background=selected_color)
 
         self.active_tab = tab_index
+
+        # 更新背景色以匹配result_frame
+        self._update_background_to_result_frame_color()
 
         # 调用标签页切换回调函数
         if self.tab_change_callback:
@@ -295,6 +493,7 @@ class IPSubnetSplitterApp:
                     ("!selected", "#e3f2fd"),
                 ],  # 非选中时的背景色
                 foreground=[("selected", "white"), ("!selected", "#1976d2")],  # 选中时白色文字
+                font=[("selected", ("微软雅黑", 10, "bold")), ("!selected", ("微软雅黑", 10, "normal"))]  # 选中时加粗，非选中时正常
             )  # 非选中时的文字颜色
 
             # 绿色标签样式 - 剩余网段列表
@@ -315,6 +514,7 @@ class IPSubnetSplitterApp:
                     ("!selected", "#e8f5e9"),
                 ],  # 非选中时的背景色
                 foreground=[("selected", "white"), ("!selected", "#388e3c")],  # 选中时白色文字
+                font=[("selected", ("微软雅黑", 10, "bold")), ("!selected", ("微软雅黑", 10, "normal"))]  # 选中时加粗，非选中时正常
             )  # 非选中时的文字颜色
 
             # 紫色标签样式 - 网段分布图表
@@ -335,6 +535,7 @@ class IPSubnetSplitterApp:
                     ("!selected", "#f3e5f5"),
                 ],  # 非选中时的背景色
                 foreground=[("selected", "white"), ("!selected", "#7b1fa2")],  # 选中时白色文字
+                font=[("selected", ("微软雅黑", 10, "bold")), ("!selected", ("微软雅黑", 10, "normal"))]  # 选中时加粗，非选中时正常
             )  # 非选中时的文字颜色
 
             # 添加内容框架样式，使内容区域颜色与激活标签保持一致
@@ -399,14 +600,8 @@ class IPSubnetSplitterApp:
         # 再次提升关于链接的层级，确保在主框架之上
         self.about_label.lift()
 
-        # 创建输入区域
-        self.create_input_section()
-
-        # 创建按钮区域
-        self.create_button_section()
-
-        # 创建结果区域
-        self.create_result_section()
+        # 创建顶级标签页控件，用于切换子网切分和子网规划两大功能模块
+        self.create_top_level_notebook()
 
         # 初始化图表数据
         self.chart_data = None
@@ -415,6 +610,52 @@ class IPSubnetSplitterApp:
         """创建输入区域 - 优化布局"""
 
         input_frame = ttk.LabelFrame(self.main_frame, text="输入参数", padding="10")  # 减小内边距
+        input_frame.pack(fill=tk.X, pady=(0, 8))  # 减少底部外边距
+
+        # 父网段
+        ttk.Label(input_frame, text="父网段 (如: 10.0.0.0/8)", anchor="e", width=22).grid(
+            row=0, column=0, sticky=tk.E, pady=5, padx=(0, 15)
+        )
+        self.parent_entry = ttk.Entry(input_frame, width=32, font=(
+            "微软雅黑", 10))
+        self.parent_entry.grid(row=0, column=1, padx=0, pady=5, sticky=tk.W)
+        self.parent_entry.insert(0, "10.0.0.0/8")  # 默认值
+
+        # 切分网段
+        ttk.Label(input_frame, text="切分网段 (如: 10.21.60.0/23)", anchor="e", width=22).grid(
+            row=1, column=0, sticky=tk.E, pady=3, padx=(0, 15)
+        )
+        self.split_entry = ttk.Entry(input_frame, width=32, font=(
+            "微软雅黑", 10))
+        self.split_entry.grid(row=1, column=1, padx=0, pady=3, sticky=tk.W)
+        self.split_entry.insert(0, "10.21.60.0/23")  # 默认值
+
+        # 按钮区域
+        # 执行按钮
+        self.execute_btn = ttk.Button(
+            input_frame, text="执行切分", command=self.execute_split, width=12
+        )
+        self.execute_btn.grid(
+            row=0, column=2, padx=(15, 8), pady=5, sticky=tk.N + tk.S + tk.E + tk.W
+        )
+
+        # 清空按钮
+        self.clear_btn = ttk.Button(
+            input_frame, text="清空结果", command=self.clear_result, width=12
+        )
+        self.clear_btn.grid(row=1, column=2, padx=(15, 8), pady=3, sticky=tk.N + tk.S + tk.E + tk.W)
+
+        # 导出按钮 - 调整高度，使其与执行切分和清空结果按钮总的显示高度一致
+        self.export_btn = ttk.Button(
+            input_frame, text="导出结果", command=self.export_result, width=14
+        )
+        self.export_btn.grid(
+            row=0, column=3, rowspan=2, padx=(0, 0), pady=(5, 3), sticky=tk.N + tk.S + tk.E + tk.W
+        )
+
+    def create_split_input_section(self):
+        """创建子网切分功能的输入区域"""
+        input_frame = ttk.LabelFrame(self.split_main_container, text="输入参数", padding="10")  # 减小内边距
         input_frame.pack(fill=tk.X, pady=(0, 8))  # 减少底部外边距
 
         # 父网段
@@ -502,6 +743,41 @@ class IPSubnetSplitterApp:
         elif tab_index == 2:
             self.draw_distribution_chart()
 
+    def create_top_level_notebook(self):
+        """创建顶级标签页控件，用于切换子网切分和子网规划两大功能模块"""
+        # 创建一个自定义的笔记本控件来显示不同的功能模块
+        self.top_level_notebook = ColoredNotebook(
+            self.main_frame, style=self.style, is_top_level=True
+        )
+        self.top_level_notebook.pack(fill=tk.BOTH, expand=True)
+
+        # 子网切分模块 - 使用默认样式以继承主窗体底色
+        self.split_frame = ttk.Frame(
+            self.top_level_notebook.content_area
+        )
+        
+        # 添加一个完全占满页面的主容器，与子网规划页面一致的内边距
+        self.split_main_container = ttk.Frame(self.split_frame, padding="10")
+        self.split_main_container.pack(fill=tk.BOTH, expand=True)
+
+        # 创建子网切分功能的输入区域
+        self.create_split_input_section()
+
+        # 创建子网切分功能的结果区域
+        self.create_split_result_section()
+
+        # 子网规划模块
+        self.planning_frame = ttk.Frame(
+            self.top_level_notebook.content_area, style=self.top_level_notebook.get_light_pink_style()
+        )
+
+        # 设置子网规划功能的界面
+        self.setup_planning_page()
+
+        # 添加顶级标签页 - 使用不同颜色
+        self.top_level_notebook.add_tab("子网切分", self.split_frame, "#fff3e0")  # 浅橙色
+        self.top_level_notebook.add_tab("子网规划", self.planning_frame, "#fce4ec")  # 淡粉色
+
     def create_result_section(self):
         """创建结果显示区域"""
         result_frame = ttk.LabelFrame(self.main_frame, text="切分结果", padding="10")
@@ -516,7 +792,7 @@ class IPSubnetSplitterApp:
 
         # 切分网段信息页面
         self.split_info_frame = ttk.Frame(
-            self.notebook.content_area, padding="5", style="LightBlue.TFrame"
+            self.notebook.content_area, padding="5", style=self.notebook.get_light_blue_style()
         )
 
         # 创建切分网段信息表格
@@ -532,7 +808,60 @@ class IPSubnetSplitterApp:
 
         # 剩余网段列表页面
         self.remaining_frame = ttk.Frame(
-            self.notebook.content_area, padding="5", style="LightGreen.TFrame"
+            self.notebook.content_area, padding="5", style=self.notebook.get_light_green_style()
+        )
+
+        # 创建剩余网段信息表格
+        self.remaining_tree = ttk.Treeview(
+            self.remaining_frame,
+            columns=("index", "cidr", "network", "netmask", "wildcard", "broadcast", "usable"),
+            show="headings"
+        )
+        self.remaining_tree.heading("index", text="序号")
+        self.remaining_tree.heading("cidr", text="CIDR")
+        self.remaining_tree.heading("network", text="网络地址")
+        self.remaining_tree.heading("netmask", text="子网掩码")
+        self.remaining_tree.heading("wildcard", text="通配符掩码")
+        self.remaining_tree.heading("broadcast", text="广播地址")
+        self.remaining_tree.heading("usable", text="可用地址数")
+
+        # 设置列宽，使用minwidth替代width，让列可以自适应
+        self.remaining_tree.column("index", minwidth=35, width=35, stretch=False)
+        self.remaining_tree.column("cidr", minwidth=100, width=120, stretch=True)
+        self.remaining_tree.column("network", minwidth=100, width=120, stretch=True)
+        self.remaining_tree.column("netmask", minwidth=100, width=120, stretch=True)
+
+    def create_split_result_section(self):
+        """创建子网切分功能的结果显示区域"""
+        result_frame = ttk.LabelFrame(self.split_main_container, text="切分结果", padding="10")
+        # 调整底部外边距，将结果区域与窗体下边距缩小
+        result_frame.pack(fill=tk.BOTH, expand=True, padx=(0, 0), pady=(0, 5))
+
+        # 创建一个自定义的笔记本控件来显示不同的结果页面
+        self.notebook = ColoredNotebook(
+            result_frame, style=self.style, tab_change_callback=self.on_tab_change
+        )
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        # 切分网段信息页面
+        self.split_info_frame = ttk.Frame(
+            self.notebook.content_area, padding="5", style=self.notebook.get_light_blue_style()
+        )
+
+        # 创建切分网段信息表格
+        self.split_tree = ttk.Treeview(
+            self.split_info_frame, columns=("item", "value"), show="headings"
+        )
+        self.split_tree.heading("item", text="项目")
+        self.split_tree.heading("value", text="值")
+        # 设置合适的列宽
+        self.split_tree.column("item", width=100, minwidth=100, stretch=False)
+        self.split_tree.column("value", width=250)
+        self.split_tree.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        # 剩余网段列表页面
+        self.remaining_frame = ttk.Frame(
+            self.notebook.content_area, padding="5", style=self.notebook.get_light_green_style()
         )
 
         # 创建剩余网段信息表格
@@ -558,22 +887,16 @@ class IPSubnetSplitterApp:
 
         # 网段分布图表页面
         self.chart_frame = ttk.Frame(
-            self.notebook.content_area, padding="5", style="LightPurple.TFrame"
-        )
-
-        # 子网规划智能建议页面
-        self.planning_frame = ttk.Frame(
-            self.notebook.content_area, padding="5", style="LightOrange.TFrame"
+            self.notebook.content_area, padding="5", style=self.notebook.get_light_purple_style()
         )
 
         # 添加标签页，每个标签页设置不同的颜色
         self.notebook.add_tab("切分网段信息", self.split_info_frame, "#e3f2fd")  # 浅蓝色
         self.notebook.add_tab("剩余网段列表", self.remaining_frame, "#e8f5e9")  # 浅绿色
         self.notebook.add_tab("网段分布图表", self.chart_frame, "#f3e5f5")  # 浅紫色
-        self.notebook.add_tab("子网规划建议", self.planning_frame, "#fff3e0")  # 浅橙色
 
         # 创建滚动容器
-        scroll_frame = ttk.Frame(self.chart_frame, style="LightPurple.TFrame")
+        scroll_frame = ttk.Frame(self.chart_frame)
         scroll_frame.pack(fill=tk.BOTH, expand=True)
 
         # 添加滚动条
@@ -609,9 +932,6 @@ class IPSubnetSplitterApp:
         self.remaining_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=5)
         self.remaining_scroll_v.pack(side=tk.RIGHT, fill=tk.Y, pady=5)
 
-        # 配置子网规划建议页面
-        self.setup_planning_page()
-
         # 绑定窗口大小变化事件，实现表格自适应
         self.root.bind("<Configure>", self.on_window_resize)
 
@@ -622,10 +942,19 @@ class IPSubnetSplitterApp:
         self.add_gridlines_to_treeviews()
 
     def setup_planning_page(self):
-        """设置子网规划建议页面"""
+        """设置子网规划功能的界面"""
         # 创建主框架
         main_planning_frame = ttk.Frame(self.planning_frame, padding="10")
         main_planning_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
+        
+        # 父网段输入区域
+        parent_frame = ttk.LabelFrame(main_planning_frame, text="父网段设置", padding="10")
+        parent_frame.pack(fill=tk.X, expand=False, pady=(0, 10))
+        
+        ttk.Label(parent_frame, text="父网段 (CIDR格式):").pack(side=tk.LEFT, padx=(0, 10))
+        self.planning_parent_entry = ttk.Entry(parent_frame, width=20)
+        self.planning_parent_entry.pack(side=tk.LEFT, padx=(0, 10))
+        self.planning_parent_entry.insert(0, "10.21.48.0/20")  # 默认值
         
 
 
@@ -649,8 +978,9 @@ class IPSubnetSplitterApp:
         )
         self.requirements_tree.heading("name", text="子网名称")
         self.requirements_tree.heading("hosts", text="主机数量")
-        self.requirements_tree.column("name", width=150, minwidth=100, stretch=True)
-        self.requirements_tree.column("hosts", width=100, minwidth=80, stretch=False)
+        # 字段宽度等分设置
+        self.requirements_tree.column("name", width=125, minwidth=100, stretch=True)
+        self.requirements_tree.column("hosts", width=125, minwidth=100, stretch=True)
         
         # 绑定双击事件以实现编辑功能
         self.requirements_tree.bind("<Double-1>", self.on_requirements_tree_double_click)
@@ -722,7 +1052,7 @@ class IPSubnetSplitterApp:
 
         # 已分配子网页面
         self.allocated_frame = ttk.Frame(
-            self.planning_notebook.content_area, padding="5", style="LightGreen.TFrame"
+            self.planning_notebook.content_area, padding="5", style=self.planning_notebook.get_light_blue_style()
         )
         self.allocated_tree = ttk.Treeview(
             self.allocated_frame,
@@ -768,7 +1098,7 @@ class IPSubnetSplitterApp:
 
         # 剩余网段页面
         self.planning_remaining_frame = ttk.Frame(
-            self.planning_notebook.content_area, padding="5", style="LightBlue.TFrame"
+            self.planning_notebook.content_area, padding="5", style=self.planning_notebook.get_light_green_style()
         )
         self.planning_remaining_tree = ttk.Treeview(
             self.planning_remaining_frame,
@@ -814,11 +1144,11 @@ class IPSubnetSplitterApp:
         self.planning_remaining_tree.grid(row=0, column=0, sticky="nsew")
         remaining_v_scrollbar.grid(row=0, column=1, sticky="ns")
 
-        # 添加标签页
-        self.planning_notebook.add_tab("已分配子网", self.allocated_frame, "#e8f5e9")  # 浅绿色
+        # 添加标签页 - 使用与切分结果一致的颜色
+        self.planning_notebook.add_tab("已分配子网", self.allocated_frame, "#e3f2fd")  # 浅蓝色
         self.planning_notebook.add_tab(
-            "剩余网段", self.planning_remaining_frame, "#e3f2fd"
-        )  # 浅蓝色
+            "剩余网段", self.planning_remaining_frame, "#e8f5e9"
+        )  # 浅绿色
         
         # 添加窗口大小变化事件处理，确保表格能自适应宽度
         self.planning_notebook.content_area.bind('<Configure>', lambda e: self.resize_tables())
@@ -883,13 +1213,19 @@ class IPSubnetSplitterApp:
         # 先隐藏对话框，避免定位过程中的闪现
         temp_window.withdraw()
 
-        # 计算居中位置
+        # 计算居中位置（相对于主窗口，不包含标题栏）
         window_width = 320
         window_height = 220
-        screen_width = temp_window.winfo_screenwidth()
-        screen_height = temp_window.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
+        # 获取主窗口的位置和尺寸
+        root_x = self.root.winfo_x()
+        root_y = self.root.winfo_y()
+        root_width = self.root.winfo_width()
+        root_height = self.root.winfo_height()
+        # 计算对话框的居中位置（不包含主窗口标题栏）
+        # 通常标题栏高度约为30像素，可以调整
+        title_bar_height = 30
+        x = root_x + (root_width - window_width) // 2
+        y = root_y + title_bar_height + (root_height - title_bar_height - window_height) // 2
         
         # 一次性设置对话框的尺寸和位置
         temp_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
@@ -1052,10 +1388,10 @@ class IPSubnetSplitterApp:
 
     def execute_subnet_planning(self):
         """执行子网规划"""
-        # 获取父网段（从输入参数区域获取）
-        parent_cidr = self.parent_entry.get().strip()
+        # 获取父网段
+        parent_cidr = self.planning_parent_entry.get().strip()
         if not parent_cidr:
-            messagebox.showerror("错误", "请在输入参数区域输入父网段")
+            messagebox.showerror("错误", "请输入父网段")
             return
 
         # 获取子网需求
@@ -1119,8 +1455,7 @@ class IPSubnetSplitterApp:
                     ),
                 )
 
-            # 显示成功消息
-            messagebox.showinfo("成功", "子网规划完成！")
+            # 子网规划完成，不显示对话框提示
 
         except Exception as e:
             messagebox.showerror("错误", f"子网规划失败: {str(e)}")
@@ -2556,22 +2891,52 @@ class IPSubnetSplitterApp:
     def create_about_link(self):
         """在主窗体标题栏右侧（红框位置）创建关于链接按钮"""
         # 直接在root窗口创建关于链接，不使用框架
-        # 创建链接样式的按钮
-        style = ttk.Style()
-        style.configure("Link.TLabel", foreground="blue", cursor="hand2")
-
-        # 创建标签
-        self.about_label = ttk.Label(self.root, text="关于……", style="Link.TLabel")
-
+        # 使用普通tk.Label直接控制样式，确保悬停效果可靠
+        
+        # 获取窗口背景色以确保完全一致
+        self.bg_color = self.root.cget("background")
+        self.hover_bg_color = "#e0e0e0"  # 更浅的灰色背景，柔和过渡
+        self.hover_fg_color = "#333333"  # 深灰色文字，保持可读性
+        self.normal_fg_color = "#666666"
+        border_color = "#cccccc"  # 更浅的灰色边框，视觉上更细
+        
+        # 使用普通tk.Label创建标签，直接设置所有样式属性
+        self.about_label = tk.Label(
+            self.root,
+            text="关于……",
+            font=('微软雅黑', 10, 'bold'),  # 字体加粗
+            fg=self.normal_fg_color,  # 文字颜色调淡为浅灰色
+            bg=self.bg_color,  # 背景色与窗口完全一致
+            padx=10,  # 水平内边距
+            pady=5,  # 垂直内边距
+            bd=0,  # 取消默认边框
+            relief="flat",  # 平坦样式
+            highlightthickness=1,  # 高亮边框宽度，模拟边框
+            highlightbackground=border_color,  # 边框颜色
+            highlightcolor=border_color,  # 边框颜色（确保一致性）
+            cursor="hand2"  # 鼠标指针为手形
+        )
+        
         # 放置在窗口标题栏右侧位置
-        # 使用绝对定位确保在标题栏右侧可见区域
-        # 将y坐标设置为15，将关于链接稍微向下移动
         self.about_label.place(relx=1.0, rely=0.0, anchor=tk.NE, x=-30, y=15)
         self.about_label.bind("<Button-1>", lambda e: self.show_about_dialog())
+        
+        # 绑定鼠标事件实现悬停效果
+        self.about_label.bind("<Enter>", self.on_about_link_enter)
+        self.about_label.bind("<Leave>", self.on_about_link_leave)
+        
+    def on_about_link_enter(self, event):
+        """鼠标进入关于链接时的处理函数"""
+        # 直接修改标签的前景色和背景色
+        self.about_label.config(fg=self.hover_fg_color, bg=self.hover_bg_color)
+        
+    def on_about_link_leave(self, event):
+        """鼠标离开关于链接时的处理函数"""
+        # 恢复标签的默认前景色和背景色
+        self.about_label.config(fg=self.normal_fg_color, bg=self.bg_color)
 
-        # 确保在Z轴上处于最顶层，不被其他控件覆盖
-        self.about_label.lift()
 
+    
     def show_about_dialog(self):
         """显示关于对话框"""
         # 创建对话框窗口
@@ -2673,6 +3038,8 @@ class IPSubnetSplitterApp:
         copyright_label.pack(pady=(2, 10))
 
 
+
+
 if __name__ == "__main__":
     # 创建主窗口
     root = tk.Tk()
@@ -2692,8 +3059,8 @@ if __name__ == "__main__":
     # 设置窗口大小和位置
     root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-    # 设置窗口最小大小
-    root.minsize(800, 400)
+    # 设置窗口最小大小 - 最小高度设为当前满意高度，只能拉大不能缩小
+    root.minsize(800, 700)
 
     # 禁止调整窗口宽度，但允许调整高度
     root.resizable(width=False, height=True)
