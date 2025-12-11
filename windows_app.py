@@ -560,14 +560,15 @@ class IPSubnetSplitterApp:
         # 在Windows系统上，简单的样式设置反而更可靠
         
         # 1. 基础Treeview样式设置 - 修复表格线显示问题
-        # 通过设置background为灰色（表格线颜色）和fieldbackground为白色（单元格背景）来显示表格线
+        # 将background设置为与偶数行相同的颜色，这样当没有足够的行时，
+        # 背景色看起来就像是斑马条纹的延续，解决斑马条纹不能充满空白区域的问题
         self.style.configure(
             "TTreeview",
-            background="#c0c0c0",  # 设置灰色背景作为表格线颜色
+            background="#e0e0e0",  # 设置与偶数行相同的背景色
             fieldbackground="#ffffff",  # 单元格背景设为白色
             foreground="black",  # 文本颜色
             rowheight=28,  # 行高
-            padding=(1, 1),  # 1px内边距，让灰色背景显示为表格线
+            padding=(1, 1),  # 1px内边距，让边框显示
             bordercolor="#c0c0c0",
             borderwidth=1
         )
@@ -800,7 +801,8 @@ class IPSubnetSplitterApp:
 
         # 创建切分网段信息表格
         self.split_tree = ttk.Treeview(
-            self.split_info_frame, columns=("item", "value"), show="headings"
+            self.split_info_frame, columns=(
+                "item", "value"), show="headings"
         )
         self.split_tree.heading("item", text="项目")
         self.split_tree.heading("value", text="值")
@@ -943,6 +945,9 @@ class IPSubnetSplitterApp:
         
         # 为所有Treeview添加表格线效果
         self.add_gridlines_to_treeviews()
+        
+        # 在窗口完全渲染后再调用动态计算方法，确保获取准确的高度
+        self.root.after(100, self.initial_table_setup)
 
     def setup_planning_page(self):
         """设置子网规划功能的界面"""
@@ -977,7 +982,7 @@ class IPSubnetSplitterApp:
 
         # 子网需求表格
         self.requirements_tree = ttk.Treeview(
-            inner_frame, columns=("name", "hosts"), show="headings", height=5  # 设置固定高度为5行
+            inner_frame, columns=("name", "hosts"), show="headings"  # 自动适应父容器高度
         )
         self.requirements_tree.heading("name", text="子网名称")
         self.requirements_tree.heading("hosts", text="主机数量")
@@ -1064,8 +1069,7 @@ class IPSubnetSplitterApp:
         self.allocated_tree = ttk.Treeview(
             self.allocated_frame,
             columns=("name", "cidr", "required", "available", "network", "netmask", "broadcast"),
-            show="headings",
-            height=5  # 设置显示5行
+            show="headings"
         )
 
         # 设置列标题
@@ -1112,8 +1116,7 @@ class IPSubnetSplitterApp:
             columns=(
                 "index", "cidr", "network", "netmask", "broadcast", "usable"
             ),
-            show="headings",
-            height=5  # 设置与其他表格相同的固定高度
+            show="headings"
         )
 
         # 设置列标题
@@ -1160,10 +1163,153 @@ class IPSubnetSplitterApp:
         # 添加窗口大小变化事件处理，确保表格能自适应宽度
         self.planning_notebook.content_area.bind('<Configure>', lambda e: self.resize_tables())
         
-    def resize_tables(self):
-        """调整表格列宽以适应容器大小"""
+        # 为规划模块表格添加空行或示例数据，显示斑马条纹效果
+        # 子网需求表格 - 保留示例数据，确保有数据
+        # 已分配子网表格 - 添加10行空数据，与height属性一致，确保充满整个表格区域
+        for item in self.allocated_tree.get_children():
+            self.allocated_tree.delete(item)
+        for i in range(10):
+            tags = ("odd",) if i % 2 == 0 else ("even",)
+            self.allocated_tree.insert("", tk.END, values=("", "", "", "", "", "", ""), tags=tags)
+        # 配置斑马条纹样式
+        self.allocated_tree.tag_configure("even", background="#d8d8d8")
+        self.allocated_tree.tag_configure("odd", background="#ffffff")
+        
+        # 规划剩余网段表格 - 添加10行空数据，与height属性一致，确保充满整个表格区域
+        for item in self.planning_remaining_tree.get_children():
+            self.planning_remaining_tree.delete(item)
+        for i in range(10):
+            tags = ("odd",) if i % 2 == 0 else ("even",)
+            self.planning_remaining_tree.insert("", tk.END, values=("", "", "", "", "", ""), tags=tags)
+        # 配置斑马条纹样式
+        self.planning_remaining_tree.tag_configure("even", background="#d8d8d8")
+        self.planning_remaining_tree.tag_configure("odd", background="#ffffff")
+        
+    def initial_table_setup(self):
+        """在窗口完全渲染后初始化表格，确保获取准确的高度"""
         try:
-            # 仅调整规划结果区域的表格，不影响子网需求区域
+            # 动态更新所有表格的空行数
+            if hasattr(self, 'split_tree'):
+                self.calculate_and_update_empty_rows(self.split_tree, is_split_tree=True)
+            if hasattr(self, 'remaining_tree'):
+                self.calculate_and_update_empty_rows(self.remaining_tree)
+            if hasattr(self, 'allocated_tree'):
+                self.calculate_and_update_empty_rows(self.allocated_tree)
+            if hasattr(self, 'planning_remaining_tree'):
+                self.calculate_and_update_empty_rows(self.planning_remaining_tree)
+        except Exception as e:
+            pass
+    
+    def calculate_and_update_empty_rows(self, tree, is_split_tree=False):
+        """动态计算并更新表格的空行数，确保斑马条纹充满整个表格区域
+        
+        Args:
+            tree: 要处理的Treeview对象
+            is_split_tree: 是否为切分网段信息表格（有提示行）
+        """
+        try:
+            # 根据用户要求，针对不同表格添加不同数量的空行
+            # 1. 切分网段信息表和剩余网段列表：加16行
+            # 2. 已分配子网和剩余网段表：加6行
+            
+            # 获取当前表格中的行数
+            current_rows = len(tree.get_children())
+            
+            # 如果是切分网段信息表格，需要考虑提示行
+            if is_split_tree:
+                # 提示行占1行
+                existing_data_rows = 1
+                # 切分网段信息表：加16行
+                min_empty_rows = 16
+            else:
+                # 其他表格：
+                # - 子网需求表格：保留示例数据，不需要额外添加空行
+                if tree == getattr(self, 'requirements_tree', None):
+                    existing_data_rows = len(tree.get_children())
+                    min_empty_rows = 0  # 保留原有数据即可
+                # - 剩余网段列表：加16行
+                elif tree == getattr(self, 'remaining_tree', None):
+                    existing_data_rows = 0
+                    min_empty_rows = 16
+                # - 已分配子网和规划剩余网段表：加6行
+                elif tree == getattr(self, 'allocated_tree', None) or tree == getattr(self, 'planning_remaining_tree', None):
+                    existing_data_rows = 0
+                    min_empty_rows = 6
+                # - 默认情况：加8行
+                else:
+                    existing_data_rows = 0
+                    min_empty_rows = 8
+            
+            # 需要的总行数 = 现有数据行数 + 最小空行数
+            num_rows = existing_data_rows + min_empty_rows
+            
+            # 如果当前行数不够，添加空行
+            if current_rows < num_rows:
+                # 计算需要添加的行数
+                rows_to_add = num_rows - current_rows
+                
+                # 获取现有最后一行的索引，确定下一行的标签
+                if current_rows == 0:
+                    next_tag = "odd"
+                else:
+                    last_item = tree.get_children()[-1]
+                    last_tags = tree.item(last_item, "tags")
+                    next_tag = "even" if last_tags and last_tags[0] == "odd" else "odd"
+                
+                # 添加空行
+                for i in range(rows_to_add):
+                    tag = next_tag
+                    next_tag = "even" if tag == "odd" else "odd"
+                    
+                    # 根据表格类型生成适当的空值
+                    if is_split_tree:
+                        # 切分网段信息表格
+                        empty_values = ("", "")
+                    elif tree == getattr(self, 'requirements_tree', None):
+                        # 子网需求表格
+                        empty_values = ("", "", "")
+                    elif tree == getattr(self, 'allocated_tree', None):
+                        # 已分配子网表格
+                        empty_values = ("", "", "", "", "", "", "")
+                    elif tree == getattr(self, 'planning_remaining_tree', None):
+                        # 规划剩余网段表格
+                        empty_values = ("", "", "", "", "", "")
+                    else:
+                        # 剩余网段列表表格
+                        empty_values = ("", "", "", "", "", "", "")
+                    
+                    tree.insert("", tk.END, values=empty_values, tags=(tag,))
+            elif current_rows > num_rows:
+                # 如果当前行数过多，删除多余的行
+                rows_to_remove = current_rows - num_rows
+                for i in range(rows_to_remove):
+                    # 删除最后一行
+                    if tree.get_children():
+                        tree.delete(tree.get_children()[-1])
+            
+            # 重新应用斑马条纹样式（确保所有行都有正确的背景色）
+            # 使用稍微深一点的颜色，让斑马条纹更明显
+            tree.tag_configure("even", background="#e0e0e0")
+            tree.tag_configure("odd", background="#ffffff")
+            
+        except Exception as e:
+            # 如果发生错误，不影响程序运行
+            pass
+    
+    def resize_tables(self):
+        """调整表格列宽以适应容器大小并更新空行数"""
+        try:
+            # 动态更新所有表格的空行数
+            if hasattr(self, 'split_tree'):
+                self.calculate_and_update_empty_rows(self.split_tree, is_split_tree=True)
+            if hasattr(self, 'remaining_tree'):
+                self.calculate_and_update_empty_rows(self.remaining_tree)
+            if hasattr(self, 'allocated_tree'):
+                self.calculate_and_update_empty_rows(self.allocated_tree)
+            if hasattr(self, 'planning_remaining_tree'):
+                self.calculate_and_update_empty_rows(self.planning_remaining_tree)
+                
+            # 仅调整规划结果区域的表格列宽，不影响子网需求区域
             if hasattr(self, 'planning_notebook') and hasattr(self.planning_notebook, 'content_area'):
                 # 获取content_area的当前宽度
                 container_width = self.planning_notebook.content_area.winfo_width()
@@ -1291,6 +1437,10 @@ class IPSubnetSplitterApp:
             new_index = current_rows + 1
             tag = "even" if new_index % 2 == 0 else "odd"
             self.requirements_tree.insert("", tk.END, values=(name, hosts), tags=(tag,))
+            
+            # 重新应用所有行的斑马条纹，确保一致性
+            self.update_requirements_tree_zebra_stripes()
+            
             temp_window.destroy()
 
         # 创建按钮并在按钮框架中居中
@@ -1316,7 +1466,7 @@ class IPSubnetSplitterApp:
     
     def update_requirements_tree_zebra_stripes(self):
         """更新子网需求表的斑马条纹"""
-        for index, item in enumerate(self.requirements_tree.get_children()):
+        for index, item in enumerate(self.requirements_tree.get_children(), start=1):
             tag = "even" if index % 2 == 0 else "odd"
             self.requirements_tree.item(item, tags=(tag,))
     
@@ -1536,19 +1686,25 @@ class IPSubnetSplitterApp:
 
             # 显示切分网段信息表格
             self.split_tree.delete(*self.split_tree.get_children())
-            self.split_tree.insert("", tk.END, values=("父网段", parent))
-            self.split_tree.insert("", tk.END, values=("切分网段", split))
-            self.split_tree.insert("", tk.END, values=("-" * 10, "-" * 20))
+            
+            # 添加切分网段信息，同时设置斑马条纹标签
+            self.split_tree.insert("", tk.END, values=("父网段", parent), tags=("odd",))
+            self.split_tree.insert("", tk.END, values=("切分网段", split), tags=("even",))
+            self.split_tree.insert("", tk.END, values=("-" * 10, "-" * 20), tags=("odd",))
 
             # 添加切分后的网段信息
             split_info = result["split_info"]
-            self.split_tree.insert("", tk.END, values=("网络地址", split_info["network"]))
-            self.split_tree.insert("", tk.END, values=("子网掩码", split_info["netmask"]))
-            self.split_tree.insert("", tk.END, values=("广播地址", split_info["broadcast"]))
+            self.split_tree.insert("", tk.END, values=("网络地址", split_info["network"]), tags=("even",))
+            self.split_tree.insert("", tk.END, values=("子网掩码", split_info["netmask"]), tags=("odd",))
+            self.split_tree.insert("", tk.END, values=("广播地址", split_info["broadcast"]), tags=("even",))
             self.split_tree.insert(
-                "", tk.END, values=("可用地址数", split_info["usable_addresses"])
+                "", tk.END, values=("可用地址数", split_info["usable_addresses"]), tags=("odd",)
             )
-            self.split_tree.insert("", tk.END, values=("CIDR", split_info["cidr"]))
+            self.split_tree.insert("", tk.END, values=("CIDR", split_info["cidr"]), tags=("even",))
+            
+            # 配置斑马条纹样式
+            self.split_tree.tag_configure("even", background="#d8d8d8")
+            self.split_tree.tag_configure("odd", background="#ffffff")
 
             # 显示剩余网段列表表格
             if result["remaining_subnets_info"]:
@@ -1754,7 +1910,8 @@ class IPSubnetSplitterApp:
 
     def draw_distribution_chart(self):
         """绘制网段分布柱状图 - 参考Web版本的呈现方式"""
-        if not self.chart_data:
+        # 检查chart_data属性是否存在且不为None
+        if not hasattr(self, 'chart_data') or not self.chart_data:
             return
 
         try:
@@ -2063,6 +2220,17 @@ class IPSubnetSplitterApp:
         # 确保表格能够自适应窗口宽度
         self.remaining_tree.update_idletasks()
         self.adjust_remaining_tree_width()
+        
+        # 动态更新所有表格的空行数，确保斑马条纹充满整个表格区域
+        if hasattr(self, 'split_tree'):
+            self.calculate_and_update_empty_rows(self.split_tree, is_split_tree=True)
+        if hasattr(self, 'remaining_tree'):
+            self.calculate_and_update_empty_rows(self.remaining_tree)
+        if hasattr(self, 'allocated_tree'):
+            self.calculate_and_update_empty_rows(self.allocated_tree)
+        if hasattr(self, 'planning_remaining_tree'):
+            self.calculate_and_update_empty_rows(self.planning_remaining_tree)
+            
         # 重新绘制图表以适应新的窗口大小
         self.draw_distribution_chart()
         # 重新绘制所有Treeview的表格线 - 使用ttk样式方案不需要手动绘制
@@ -2922,11 +3090,16 @@ class IPSubnetSplitterApp:
         # 清空切分网段信息表格
         for item in self.split_tree.get_children():
             self.split_tree.delete(item)
-        self.split_tree.insert("", tk.END, values=("提示", "点击'执行切分'按钮开始操作..."))
+        # 添加提示行
+        self.split_tree.insert("", tk.END, values=("提示", "点击'执行切分'按钮开始操作..."), tags=('odd',))
+        # 使用动态计算功能添加适当数量的空行，确保斑马条纹充满整个表格区域
+        self.calculate_and_update_empty_rows(self.split_tree, is_split_tree=True)
 
         # 清空剩余网段列表表格
         for item in self.remaining_tree.get_children():
             self.remaining_tree.delete(item)
+        # 使用动态计算功能添加适当数量的空行，确保斑马条纹充满整个表格区域
+        self.calculate_and_update_empty_rows(self.remaining_tree)
 
         # 清空图表
         self.chart_canvas.delete("all")
