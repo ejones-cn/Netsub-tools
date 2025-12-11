@@ -9,7 +9,7 @@ __pycache__/
 logs/
 
 # Compiled Executables
-dist/
+# dist/ - 暂时取消注释以同步dist目录到仓库
 
 # PyInstaller Build Files
 build/
