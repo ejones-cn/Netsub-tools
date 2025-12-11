@@ -588,6 +588,9 @@ class IPSubnetSplitterApp:
             foreground=[("selected", "white")]
         )
 
+        # 4. 斑马条纹样式配置
+        # 在Treeview中通过标签(tags)实现斑马条纹效果
+        # 注意：ttk.Style不直接支持斑马条纹，需要在插入行时使用tags
         print("Treeview表格线样式设置完成")
 
         # 先在右上角添加关于链接按钮，确保它显示在标题栏右侧
@@ -1027,10 +1030,14 @@ class IPSubnetSplitterApp:
         )
         self.execute_planning_btn.grid(row=3, column=0, sticky="ew", pady=(0, 0))
 
-        # 添加示例数据
-        self.requirements_tree.insert("", tk.END, values=("办公区", "200"))
-        self.requirements_tree.insert("", tk.END, values=("服务器区", "50"))
-        self.requirements_tree.insert("", tk.END, values=("研发部", "100"))
+        # 添加示例数据 - 带斑马条纹标签
+        self.requirements_tree.insert("", tk.END, values=("办公区", "200"), tags=("odd",))
+        self.requirements_tree.insert("", tk.END, values=("服务器区", "50"), tags=("even",))
+        self.requirements_tree.insert("", tk.END, values=("研发部", "100"), tags=("odd",))
+        
+        # 配置斑马条纹样式
+        self.requirements_tree.tag_configure("even", background="#d8d8d8")
+        self.requirements_tree.tag_configure("odd", background="#ffffff")
 
         # 删除原来的执行规划按钮容器
         # 按钮已移动到删除按钮下方
@@ -1248,12 +1255,18 @@ class IPSubnetSplitterApp:
         name_var = tk.StringVar()
         name_entry = ttk.Entry(main_frame, textvariable=name_var, width=20)
         name_entry.grid(row=0, column=2, sticky=tk.W, pady=15, padx=(0, 10))
+        # 添加回车绑定
+        name_entry.bind("<Return>", lambda event: save_requirement())
+        # 自动获得焦点，方便直接输入
+        name_entry.focus_set()
 
         # 主机数量 - 标签在中间列左侧，输入框在中间列右侧
         ttk.Label(main_frame, text="主机数量:").grid(row=1, column=1, sticky=tk.E, pady=15, padx=(10, 10))
         hosts_var = tk.StringVar()
         hosts_entry = ttk.Entry(main_frame, textvariable=hosts_var, width=20)
         hosts_entry.grid(row=1, column=2, sticky=tk.W, pady=15, padx=(0, 10))
+        # 添加回车绑定
+        hosts_entry.bind("<Return>", lambda event: save_requirement())
 
         # 按钮框架 - 横跨所有列，确保按钮组居中
         button_frame = ttk.Frame(main_frame)
@@ -1272,8 +1285,12 @@ class IPSubnetSplitterApp:
                 messagebox.showerror("错误", "请输入有效的主机数量")
                 return
 
-            # 添加到表格
-            self.requirements_tree.insert("", tk.END, values=(name, hosts))
+            # 添加到表格 - 带斑马条纹标签
+            # 获取当前表格中的行数，计算新行的索引（从1开始）
+            current_rows = len(self.requirements_tree.get_children())
+            new_index = current_rows + 1
+            tag = "even" if new_index % 2 == 0 else "odd"
+            self.requirements_tree.insert("", tk.END, values=(name, hosts), tags=(tag,))
             temp_window.destroy()
 
         # 创建按钮并在按钮框架中居中
@@ -1285,7 +1302,7 @@ class IPSubnetSplitterApp:
         cancel_button.pack(side=tk.LEFT)
 
     def delete_subnet_requirement(self):
-        """删除选中的子网需求"""
+        """删除选中的子网需求，并重新应用斑马条纹"""
         selected_items = self.requirements_tree.selection()
         if not selected_items:
             messagebox.showwarning("提示", "请先选择要删除的子网需求")
@@ -1293,6 +1310,15 @@ class IPSubnetSplitterApp:
 
         for item in selected_items:
             self.requirements_tree.delete(item)
+        
+        # 删除后重新应用斑马条纹
+        self.update_requirements_tree_zebra_stripes()
+    
+    def update_requirements_tree_zebra_stripes(self):
+        """更新子网需求表的斑马条纹"""
+        for index, item in enumerate(self.requirements_tree.get_children()):
+            tag = "even" if index % 2 == 0 else "odd"
+            self.requirements_tree.item(item, tags=(tag,))
     
     def on_requirements_tree_double_click(self, event):
         """双击Treeview单元格时触发编辑功能"""
@@ -1425,7 +1451,9 @@ class IPSubnetSplitterApp:
                 self.planning_remaining_tree.delete(item)
 
             # 显示已分配子网
-            for subnet in plan_result['allocated_subnets']:
+            for i, subnet in enumerate(plan_result['allocated_subnets'], 1):
+                # 设置斑马条纹标签
+                tags = ("even",) if i % 2 == 0 else ("odd",)
                 self.allocated_tree.insert(
                     "",
                     tk.END,
@@ -1438,10 +1466,16 @@ class IPSubnetSplitterApp:
                         subnet["info"]["netmask"],
                         subnet["info"]["broadcast"],
                     ),
+                    tags=tags
                 )
+            # 配置斑马条纹样式 - 颜色继续调深
+            self.allocated_tree.tag_configure("even", background="#d8d8d8")
+            self.allocated_tree.tag_configure("odd", background="#ffffff")
 
             # 显示剩余网段
             for i, subnet in enumerate(plan_result['remaining_subnets_info'], 1):
+                # 设置斑马条纹标签
+                tags = ("even",) if i % 2 == 0 else ("odd",)
                 self.planning_remaining_tree.insert(
                     "",
                     tk.END,
@@ -1453,7 +1487,11 @@ class IPSubnetSplitterApp:
                         subnet["broadcast"],
                         subnet["usable_addresses"],  # 修正为正确的字段名
                     ),
+                    tags=tags
                 )
+            # 配置斑马条纹样式 - 颜色继续调深
+            self.planning_remaining_tree.tag_configure("even", background="#d8d8d8")
+            self.planning_remaining_tree.tag_configure("odd", background="#ffffff")
 
             # 子网规划完成，不显示对话框提示
 
@@ -1515,6 +1553,8 @@ class IPSubnetSplitterApp:
             # 显示剩余网段列表表格
             if result["remaining_subnets_info"]:
                 for i, network in enumerate(result["remaining_subnets_info"], 1):
+                    # 设置斑马条纹标签
+                    tags = ("even",) if i % 2 == 0 else ("odd",)
                     self.remaining_tree.insert(
                         "",
                         tk.END,
@@ -1527,7 +1567,11 @@ class IPSubnetSplitterApp:
                             network["broadcast"],
                             network["usable_addresses"],
                         ),
+                        tags=tags
                     )
+                # 配置斑马条纹样式 - 颜色继续调深
+                self.remaining_tree.tag_configure("even", background="#d8d8d8")
+                self.remaining_tree.tag_configure("odd", background="#ffffff")
             else:
                 self.remaining_tree.insert("", tk.END, values=(1, "无", "无", "无", "无", "无"))
 
