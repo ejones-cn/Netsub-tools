@@ -161,14 +161,20 @@ class ColoredNotebook(ttk.Frame):
 
 class IPSubnetSplitterApp:
     def __init__(self, root):
-        self.root = root
-        self.root.title("IP子网切分工具 v1.1.0")
-        # 所有窗口大小、位置和限制设置都由主程序入口统一管理
-        # 这里只设置窗口标题
+        # 导入版本管理模块
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from version import get_version
         
         # 应用程序信息
         self.app_name = "IP子网切分工具"
-        self.app_version = "1.1.0"
+        self.app_version = get_version()
+        
+        self.root = root
+        self.root.title(f"IP子网切分工具 v{self.app_version}")
+        # 所有窗口大小、位置和限制设置都由主程序入口统一管理
+        # 这里只设置窗口标题
         
         # 设置样式
         self.style = ttk.Style()

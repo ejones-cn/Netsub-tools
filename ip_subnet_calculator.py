@@ -11,7 +11,13 @@ IP子网切分计算器
 4. 执行子网切分
 """
 
-__version__ = "1.1.0"
+# 导入版本管理模块
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from version import get_version
+
+__version__ = get_version()
 
 import ipaddress
 
