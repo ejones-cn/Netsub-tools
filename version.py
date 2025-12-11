@@ -17,7 +17,8 @@ VERSION_TUPLE = (MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION)
 RELEASE_DATES = {
     "1.0.0": "2025-11-30",
     "1.1.0": "2025-12-05",
-    "1.2.0": "2025-12-10"
+    "1.2.0": "2025-12-10",
+    "1.2.1": "2025-12-11"
 }
 
 def get_version():
