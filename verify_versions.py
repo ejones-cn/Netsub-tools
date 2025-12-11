@@ -17,7 +17,7 @@ print("=" * 50)
 # 检查README.md
 with open("README.md", "r", encoding="utf-8") as f:
     readme_content = f.read()
-match = re.search(r'# IP子网切分工具 v(\d+\.\d+\.\d+)', readme_content)
+match = re.search(r"# IP子网切分工具 v(\d+\.\d+\.\d+)", readme_content)
 if match:
     readme_version = match.group(1)
     print(f"README.md 版本: v{readme_version}")
@@ -30,6 +30,7 @@ print("-" * 50)
 
 # 检查ip_subnet_calculator.py
 import ip_subnet_calculator
+
 print(f"ip_subnet_calculator.py 版本: v{ip_subnet_calculator.__version__}")
 print(f"状态: {'✓ 正确' if ip_subnet_calculator.__version__ == app_version else '✗ 不一致'}")
 
@@ -38,7 +39,7 @@ print("-" * 50)
 # 检查web_app.py
 with open("web_app.py", "r", encoding="utf-8") as f:
     web_app_content = f.read()
-matches = re.findall(r'v(\d+\.\d+\.\d+)', web_app_content)
+matches = re.findall(r"v(\d+\.\d+\.\d+)", web_app_content)
 if matches:
     # 获取所有匹配的版本号
     versions = set(matches)

@@ -3,14 +3,16 @@ from ip_subnet_calculator import split_subnet
 
 app = Flask(__name__)
 
+
 # 模板过滤器
 def enumerate_filter(sequence, start=0):
     return enumerate(sequence, start)
 
-app.jinja_env.filters['enumerate'] = enumerate_filter
+
+app.jinja_env.filters["enumerate"] = enumerate_filter
 
 # HTML模板
-HTML_TEMPLATE = '''
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -590,19 +592,21 @@ HTML_TEMPLATE = '''
     </div>
 </body>
 </html>
-'''
+"""
 
-@app.route('/', methods=['GET', 'POST'])
+
+@app.route("/", methods=["GET", "POST"])
 def index():
-    parent = request.form.get('parent', '10.0.0.0/8')
-    split = request.form.get('split', '10.21.60.0/23')
+    parent = request.form.get("parent", "10.0.0.0/8")
+    split = request.form.get("split", "10.21.60.0/23")
     result = None
-    
-    if request.method == 'POST':
+
+    if request.method == "POST":
         # 执行切分
         result = split_subnet(parent, split)
-    
+
     return render_template_string(HTML_TEMPLATE, parent=parent, split=split, result=result)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

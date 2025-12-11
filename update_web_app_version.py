@@ -16,7 +16,7 @@ with open("web_app.py", "r", encoding="utf-8") as f:
     content = f.read()
 
 # 替换所有硬编码的版本号
-content = re.sub(r'v\d+\.\d+\.\d+', f'v{app_version}', content)
+content = re.sub(r"v\d+\.\d+\.\d+", f"v{app_version}", content)
 
 # 写回文件
 with open("web_app.py", "w", encoding="utf-8") as f:

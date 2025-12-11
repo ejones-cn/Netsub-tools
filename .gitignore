@@ -9,7 +9,7 @@ __pycache__/
 logs/
 
 # Compiled Executables
-# dist/
+dist/
 
 # PyInstaller Build Files
 build/
