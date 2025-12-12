@@ -802,7 +802,7 @@ class IPSubnetSplitterApp:
         # 创建切分网段信息表格
         self.split_tree = ttk.Treeview(
             self.split_info_frame, columns=(
-                "item", "value"), show="headings"
+                "item", "value"), show="headings", height=5
         )
         self.split_tree.heading("item", text="项目")
         self.split_tree.heading("value", text="值")
@@ -820,7 +820,8 @@ class IPSubnetSplitterApp:
         self.remaining_tree = ttk.Treeview(
             self.remaining_frame,
             columns=("index", "cidr", "network", "netmask", "wildcard", "broadcast", "usable"),
-            show="headings"
+            show="headings",
+            height=5
         )
         self.remaining_tree.heading("index", text="序号")
         self.remaining_tree.heading("cidr", text="CIDR")
@@ -855,7 +856,7 @@ class IPSubnetSplitterApp:
 
         # 创建切分网段信息表格
         self.split_tree = ttk.Treeview(
-            self.split_info_frame, columns=("item", "value"), show="headings"
+            self.split_info_frame, columns=("item", "value"), show="headings", height=5
         )
         self.split_tree.heading("item", text="项目")
         self.split_tree.heading("value", text="值")
@@ -873,7 +874,8 @@ class IPSubnetSplitterApp:
         self.remaining_tree = ttk.Treeview(
             self.remaining_frame,
             columns=("index", "cidr", "network", "netmask", "wildcard", "broadcast", "usable"),
-            show="headings"
+            show="headings",
+            height=5
         )
         self.remaining_tree.heading("index", text="序号")
         self.remaining_tree.heading("cidr", text="CIDR")
@@ -982,7 +984,7 @@ class IPSubnetSplitterApp:
 
         # 子网需求表格
         self.requirements_tree = ttk.Treeview(
-            inner_frame, columns=("name", "hosts"), show="headings"  # 自动适应父容器高度
+            inner_frame, columns=("name", "hosts"), show="headings", height=5  # 设置为5行高度
         )
         self.requirements_tree.heading("name", text="子网名称")
         self.requirements_tree.heading("hosts", text="主机数量")
@@ -1069,7 +1071,8 @@ class IPSubnetSplitterApp:
         self.allocated_tree = ttk.Treeview(
             self.allocated_frame,
             columns=("name", "cidr", "required", "available", "network", "netmask", "broadcast"),
-            show="headings"
+            show="headings",
+            height=5  # 设置为5行高度
         )
 
         # 设置列标题
@@ -1116,7 +1119,8 @@ class IPSubnetSplitterApp:
             columns=(
                 "index", "cidr", "network", "netmask", "broadcast", "usable"
             ),
-            show="headings"
+            show="headings",
+            height=5  # 设置为5行高度
         )
 
         # 设置列标题
