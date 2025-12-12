@@ -1165,12 +1165,10 @@ class IPSubnetSplitterApp:
         
         # 为规划模块表格添加空行或示例数据，显示斑马条纹效果
         # 子网需求表格 - 保留示例数据，确保有数据
-        # 已分配子网表格 - 添加10行空数据，与height属性一致，确保充满整个表格区域
+        # 已分配子网表格 - 初始化时不添加空行
         for item in self.allocated_tree.get_children():
             self.allocated_tree.delete(item)
-        for i in range(10):
-            tags = ("odd",) if i % 2 == 0 else ("even",)
-            self.allocated_tree.insert("", tk.END, values=("", "", "", "", "", "", ""), tags=tags)
+        # 删除了初始化时添加10行空行的代码
         # 配置斑马条纹样式
         self.allocated_tree.tag_configure("even", background="#d8d8d8")
         self.allocated_tree.tag_configure("odd", background="#ffffff")
@@ -1178,9 +1176,7 @@ class IPSubnetSplitterApp:
         # 规划剩余网段表格 - 添加10行空数据，与height属性一致，确保充满整个表格区域
         for item in self.planning_remaining_tree.get_children():
             self.planning_remaining_tree.delete(item)
-        for i in range(10):
-            tags = ("odd",) if i % 2 == 0 else ("even",)
-            self.planning_remaining_tree.insert("", tk.END, values=("", "", "", "", "", ""), tags=tags)
+        # 删除了初始化时添加10行空行的代码
         # 配置斑马条纹样式
         self.planning_remaining_tree.tag_configure("even", background="#d8d8d8")
         self.planning_remaining_tree.tag_configure("odd", background="#ffffff")
@@ -1201,17 +1197,13 @@ class IPSubnetSplitterApp:
             pass
     
     def calculate_and_update_empty_rows(self, tree, is_split_tree=False):
-        """动态计算并更新表格的空行数，确保斑马条纹充满整个表格区域
+        """调整表格的斑马条纹样式，不再添加空行
         
         Args:
             tree: 要处理的Treeview对象
             is_split_tree: 是否为切分网段信息表格（有提示行）
         """
         try:
-            # 根据用户要求，针对不同表格添加不同数量的空行
-            # 1. 切分网段信息表和剩余网段列表：加16行
-            # 2. 已分配子网和剩余网段表：加6行
-            
             # 获取当前表格中的行数
             current_rows = len(tree.get_children())
             
@@ -1219,73 +1211,19 @@ class IPSubnetSplitterApp:
             if is_split_tree:
                 # 提示行占1行
                 existing_data_rows = 1
-                # 切分网段信息表：加16行
-                min_empty_rows = 16
             else:
                 # 其他表格：
-                # - 子网需求表格：保留示例数据，不需要额外添加空行
+                # - 子网需求表格：保留示例数据
                 if tree == getattr(self, 'requirements_tree', None):
                     existing_data_rows = len(tree.get_children())
-                    min_empty_rows = 0  # 保留原有数据即可
-                # - 剩余网段列表：加16行
-                elif tree == getattr(self, 'remaining_tree', None):
-                    existing_data_rows = 0
-                    min_empty_rows = 16
-                # - 已分配子网和规划剩余网段表：加6行
-                elif tree == getattr(self, 'allocated_tree', None) or tree == getattr(self, 'planning_remaining_tree', None):
-                    existing_data_rows = 0
-                    min_empty_rows = 6
-                # - 默认情况：加8行
+                # - 其他表格
                 else:
                     existing_data_rows = 0
-                    min_empty_rows = 8
             
-            # 需要的总行数 = 现有数据行数 + 最小空行数
-            num_rows = existing_data_rows + min_empty_rows
+            # 不添加任何空行
+            min_empty_rows = 0
             
-            # 如果当前行数不够，添加空行
-            if current_rows < num_rows:
-                # 计算需要添加的行数
-                rows_to_add = num_rows - current_rows
-                
-                # 获取现有最后一行的索引，确定下一行的标签
-                if current_rows == 0:
-                    next_tag = "odd"
-                else:
-                    last_item = tree.get_children()[-1]
-                    last_tags = tree.item(last_item, "tags")
-                    next_tag = "even" if last_tags and last_tags[0] == "odd" else "odd"
-                
-                # 添加空行
-                for i in range(rows_to_add):
-                    tag = next_tag
-                    next_tag = "even" if tag == "odd" else "odd"
-                    
-                    # 根据表格类型生成适当的空值
-                    if is_split_tree:
-                        # 切分网段信息表格
-                        empty_values = ("", "")
-                    elif tree == getattr(self, 'requirements_tree', None):
-                        # 子网需求表格
-                        empty_values = ("", "", "")
-                    elif tree == getattr(self, 'allocated_tree', None):
-                        # 已分配子网表格
-                        empty_values = ("", "", "", "", "", "", "")
-                    elif tree == getattr(self, 'planning_remaining_tree', None):
-                        # 规划剩余网段表格
-                        empty_values = ("", "", "", "", "", "")
-                    else:
-                        # 剩余网段列表表格
-                        empty_values = ("", "", "", "", "", "", "")
-                    
-                    tree.insert("", tk.END, values=empty_values, tags=(tag,))
-            elif current_rows > num_rows:
-                # 如果当前行数过多，删除多余的行
-                rows_to_remove = current_rows - num_rows
-                for i in range(rows_to_remove):
-                    # 删除最后一行
-                    if tree.get_children():
-                        tree.delete(tree.get_children()[-1])
+            # 不再添加或删除空行，仅保留斑马条纹样式设置
             
             # 重新应用斑马条纹样式（确保所有行都有正确的背景色）
             # 使用稍微深一点的颜色，让斑马条纹更明显

@@ -145,8 +145,10 @@ def suggest_subnet_planning(parent_cidr, required_subnets):
             required_addresses = subnet["hosts"] + 2
             # 计算合适的前缀长度
             prefix_len = 32 - (required_addresses - 1).bit_length()
-            # 确保前缀长度不小于父网段的前缀长度
+            # 确保前缀长度在有效范围内（0-32）且不小于父网段的前缀长度
             prefix_len = max(prefix_len, parent_net.prefixlen)
+            prefix_len = min(prefix_len, 32)  # 确保前缀长度不超过32
+            prefix_len = max(prefix_len, 0)   # 确保前缀长度不小于0
             subnet["prefix_len"] = prefix_len
 
         # 开始分配子网
@@ -161,7 +163,24 @@ def suggest_subnet_planning(parent_cidr, required_subnets):
                 # 检查可用子网是否有足够的空间
                 if available.prefixlen <= required["prefix_len"]:
                     # 创建所需的子网
-                    new_subnet = list(available.subnets(new_prefix=required["prefix_len"]))[0]
+                    # 确保新前缀长度在有效范围内
+                    new_prefix = required["prefix_len"]
+                    new_prefix = max(new_prefix, 0)
+                    new_prefix = min(new_prefix, 32)
+                    
+                    # 验证是否可以使用该前缀长度创建子网
+                    try:
+                        subnets_list = list(available.subnets(new_prefix=new_prefix))
+                        if not subnets_list:
+                            return {"error": f"无法为 {required['name']} 创建前缀长度为 {new_prefix} 的子网"}
+                        
+                        new_subnet = subnets_list[0]
+                        
+                        # 确保生成的子网有有效的前缀长度
+                        if not (0 <= new_subnet.prefixlen <= 32):
+                            return {"error": f"生成了无效的子网前缀长度: {new_subnet.prefixlen}"}
+                    except ValueError as e:
+                        return {"error": f"创建子网失败: {str(e)}"}
 
                     # 分配该子网
                     allocated_subnets.append(
