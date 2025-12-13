@@ -96,12 +96,13 @@ def split_subnet(parent_cidr, split_cidr):
         # 如果父网段和切分网段相同，直接返回空列表
         if parent_net == split_net:
             return {
-                "parent": parent_cidr,
-                "split": split_cidr,
-                "remaining_subnets": [],
-                "split_info": get_subnet_info(split_cidr),
-                "remaining_subnets_info": [],
-            }
+            "parent": parent_cidr,
+            "split": split_cidr,
+            "remaining_subnets": [],
+            "parent_info": get_subnet_info(parent_cidr),
+            "split_info": get_subnet_info(split_cidr),
+            "remaining_subnets_info": [],
+        }
 
         # 使用Python ipaddress模块的address_exclude方法获取剩余网段
         # 这个方法会自动生成最简洁的剩余网段列表
@@ -114,6 +115,7 @@ def split_subnet(parent_cidr, split_cidr):
             "parent": parent_cidr,
             "split": split_cidr,
             "remaining_subnets": [str(subnet) for subnet in remaining],
+            "parent_info": get_subnet_info(parent_cidr),
             "split_info": get_subnet_info(split_cidr),
             "remaining_subnets_info": [get_subnet_info(str(subnet)) for subnet in remaining],
         }

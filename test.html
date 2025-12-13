@@ -1,12 +1,4 @@
-from flask import Flask, request, render_template_string
-import ipaddress
-import json
-from ip_subnet_calculator import split_subnet, suggest_subnet_planning
-from version import __version__
-
-app = Flask(__name__)
-
-HTML_TEMPLATE = '''
+﻿
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -272,37 +264,33 @@ HTML_TEMPLATE = '''
 </head>
 <body>
     <div class="container">
-        <h1>IP子网切分工具 v{{ version }}</h1>
+        <h1>IP子网切分工具 v1.3.0</h1>
         
         <!-- 功能选项卡 -->
         <div class="tabs">
-            <button class="tab {{ 'active' if active_tab == 'subnet-split' else '' }}" data-target="subnet-split">子网切分</button>
-            <button class="tab {{ 'active' if active_tab == 'subnet-plan' else '' }}" data-target="subnet-plan">子网规划</button>
+            <button class="tab active" data-target="subnet-split">子网切分</button>
+            <button class="tab " data-target="subnet-plan">子网规划</button>
         </div>
         
         <!-- 子网切分功能 -->
-        <div id="subnet-split" class="tool-content {{ 'active' if active_tab == 'subnet-split' else '' }}">
+        <div id="subnet-split" class="tool-content active">
             <form method="POST">
                 <input type="hidden" name="active_tab" value="subnet-split">
                 <div class="form-group">
                     <label for="parent">父网段 (如：10.0.0.0/8)</label>
-                    <input type="text" id="parent" name="parent" value="{{ parent if parent else '10.0.0.0/8' }}" required>
+                    <input type="text" id="parent" name="parent" value="10.0.0.0/8" required>
                 </div>
                 <div class="form-group">
                     <label for="split">要切分的子网 (如：10.21.60.0/23)</label>
-                    <input type="text" id="split" name="split" value="{{ split if split else '10.21.60.0/23' }}" required>
+                    <input type="text" id="split" name="split" value="10.21.60.0/23" required>
                 </div>
                 <button type="submit" name="action" value="split">执行切分</button>
             </form>
             
             <!-- 子网切分结果展示 -->
-            {% if result %}
+            
                 <div class="result">
-                    {% if result.error %}
-                        <div class="error">
-                            <strong>错误：</strong>{{ result.error }}
-                        </div>
-                    {% else %}
+                    
                         <h2>切分结果</h2>
                         
                         <!-- 标签页控制 -->
@@ -313,87 +301,265 @@ HTML_TEMPLATE = '''
                         </div>
                         
                         <!-- 切分网段信息标签页 -->
-                        <div id="split-info" class="tab-content active" style="background-color: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd;">
+                        <div id="split-info" class="tab-content active" style="background-color: rgba(227, 242, 253, 0.3); padding: 15px; border-radius: 4px;">
                             <div class="subnet-info">
-                                <h3>网段详细信息</h3>
-                                <div class="table-container">
-                                    <table class="subnet-table">
-                                        <tr>
-                                            <th>信息类型</th>
-                                            <th>父网段</th>
-                                            <th>切分网段</th>
-                                        </tr>
-                                        <tr>
-                                            <td>网段</td>
-                                            <td>{{ result.parent }}</td>
-                                            <td>{{ result.split }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>网络地址</td>
-                                            <td>{{ result.parent_info.network }}</td>
-                                            <td>{{ result.split_info.network }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>子网掩码</td>
-                                            <td>{{ result.parent_info.netmask }}</td>
-                                            <td>{{ result.split_info.netmask }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>广播地址</td>
-                                            <td>{{ result.parent_info.broadcast }}</td>
-                                            <td>{{ result.split_info.broadcast }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>地址总数</td>
-                                            <td>{{ result.parent_info.num_addresses }}</td>
-                                            <td>{{ result.split_info.num_addresses }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>可用地址</td>
-                                            <td>{{ result.parent_info.usable_addresses }}</td>
-                                            <td>{{ result.split_info.usable_addresses }}</td>
-                                        </tr>
-                                    </table>
+                                <h3>父网段详细信息</h3>
+                                <div class="info-row">
+                                    <div class="info-label">网段:</div>
+                                    <div class="info-value">10.0.0.0/8</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">网络地址:</div>
+                                    <div class="info-value">10.0.0.0</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">子网掩码:</div>
+                                    <div class="info-value">255.0.0.0</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">广播地址:</div>
+                                    <div class="info-value">10.255.255.255</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">可用地址数:</div>
+                                    <div class="info-value">16777214</div>
                                 </div>
                             </div>
                             
-
+                            <div class="subnet-info">
+                                <h3>切分网段详细信息</h3>
+                                <div class="info-row">
+                                    <div class="info-label">网段:</div>
+                                    <div class="info-value">10.21.60.0/23</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">网络地址:</div>
+                                    <div class="info-value">10.21.60.0</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">子网掩码:</div>
+                                    <div class="info-value">255.255.254.0</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">广播地址:</div>
+                                    <div class="info-value">10.21.61.255</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">可用地址数:</div>
+                                    <div class="info-value">510</div>
+                                </div>
+                            </div>
+                            
+                            <div class="table-container">
+                                <table class="subnet-table">
+                                    <tr>
+                                        <th>项目</th>
+                                        <th>值</th>
+                                    </tr>
+                                    <tr>
+                                        <td>网络地址</td>
+                                        <td>10.21.60.0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>子网掩码</td>
+                                        <td>255.255.254.0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>广播地址</td>
+                                        <td>10.21.61.255</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CIDR表示</td>
+                                        <td>10.21.60.0/23</td>
+                                    </tr>
+                                    <tr>
+                                        <td>前缀长度</td>
+                                        <td>23</td>
+                                    </tr>
+                                    <tr>
+                                        <td>地址总数</td>
+                                        <td>512</td>
+                                    </tr>
+                                    <tr>
+                                        <td>可用地址</td>
+                                        <td>510</td>
+                                    </tr>
+                                </table>
+                            </div>
                         </div>
                         
                         <!-- 剩余网段列表标签页 -->
-                        <div id="remaining-subnets" class="tab-content" style="background-color: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd;">
-                            <div class="content-container">
-                                <h3>剩余网段 ({{ result.remaining_subnets_info|length }} 个)</h3>
-                                
-                                <div class="table-container">
-                                    <table class="subnet-table">
+                        <div id="remaining-subnets" class="tab-content" style="background-color: rgba(232, 245, 233, 0.3); padding: 15px; border-radius: 4px;">
+                            <h3>剩余网段 (15 个)</h3>
+                            
+                            <div class="table-container">
+                                <table class="subnet-table">
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>CIDR</th>
+                                        <th>网络地址</th>
+                                        <th>子网掩码</th>
+                                        <th>通配符掩码</th>
+                                        <th>广播地址</th>
+                                        <th>可用地址数</th>
+                                    </tr>
+                                    
                                         <tr>
-                                            <th>序号</th>
-                                            <th>CIDR</th>
-                                            <th>网络地址</th>
-                                            <th>子网掩码</th>
-                                            <th>通配符掩码</th>
-                                            <th>广播地址</th>
-                                            <th>可用地址</th>
+                                            <td>1</td>
+                                            <td>10.0.0.0/12</td>
+                                            <td>10.0.0.0</td>
+                                            <td>255.240.0.0</td>
+                                            <td>0.15.255.255</td>
+                                            <td>10.15.255.255</td>
+                                            <td>1048574</td>
                                         </tr>
-                                        {% for subnet in result.remaining_subnets_info %}
-                                            <tr>
-                                                <td>{{ loop.index }}</td>
-                                                <td>{{ subnet.cidr }}</td>
-                                                <td>{{ subnet.network }}</td>
-                                                <td>{{ subnet.netmask }}</td>
-                                                <td>{{ subnet.wildcard }}</td>
-                                                <td>{{ subnet.broadcast }}</td>
-                                                <td>{{ subnet.usable_addresses }}</td>
-                                            </tr>
-                                        {% endfor %}
-                                    </table>
-                                </div>
+                                    
+                                        <tr>
+                                            <td>2</td>
+                                            <td>10.16.0.0/14</td>
+                                            <td>10.16.0.0</td>
+                                            <td>255.252.0.0</td>
+                                            <td>0.3.255.255</td>
+                                            <td>10.19.255.255</td>
+                                            <td>262142</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>3</td>
+                                            <td>10.20.0.0/16</td>
+                                            <td>10.20.0.0</td>
+                                            <td>255.255.0.0</td>
+                                            <td>0.0.255.255</td>
+                                            <td>10.20.255.255</td>
+                                            <td>65534</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>4</td>
+                                            <td>10.21.0.0/19</td>
+                                            <td>10.21.0.0</td>
+                                            <td>255.255.224.0</td>
+                                            <td>0.0.31.255</td>
+                                            <td>10.21.31.255</td>
+                                            <td>8190</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>5</td>
+                                            <td>10.21.32.0/20</td>
+                                            <td>10.21.32.0</td>
+                                            <td>255.255.240.0</td>
+                                            <td>0.0.15.255</td>
+                                            <td>10.21.47.255</td>
+                                            <td>4094</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>6</td>
+                                            <td>10.21.48.0/21</td>
+                                            <td>10.21.48.0</td>
+                                            <td>255.255.248.0</td>
+                                            <td>0.0.7.255</td>
+                                            <td>10.21.55.255</td>
+                                            <td>2046</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>7</td>
+                                            <td>10.21.56.0/22</td>
+                                            <td>10.21.56.0</td>
+                                            <td>255.255.252.0</td>
+                                            <td>0.0.3.255</td>
+                                            <td>10.21.59.255</td>
+                                            <td>1022</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>8</td>
+                                            <td>10.21.62.0/23</td>
+                                            <td>10.21.62.0</td>
+                                            <td>255.255.254.0</td>
+                                            <td>0.0.1.255</td>
+                                            <td>10.21.63.255</td>
+                                            <td>510</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>9</td>
+                                            <td>10.21.64.0/18</td>
+                                            <td>10.21.64.0</td>
+                                            <td>255.255.192.0</td>
+                                            <td>0.0.63.255</td>
+                                            <td>10.21.127.255</td>
+                                            <td>16382</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>10</td>
+                                            <td>10.21.128.0/17</td>
+                                            <td>10.21.128.0</td>
+                                            <td>255.255.128.0</td>
+                                            <td>0.0.127.255</td>
+                                            <td>10.21.255.255</td>
+                                            <td>32766</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>11</td>
+                                            <td>10.22.0.0/15</td>
+                                            <td>10.22.0.0</td>
+                                            <td>255.254.0.0</td>
+                                            <td>0.1.255.255</td>
+                                            <td>10.23.255.255</td>
+                                            <td>131070</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>12</td>
+                                            <td>10.24.0.0/13</td>
+                                            <td>10.24.0.0</td>
+                                            <td>255.248.0.0</td>
+                                            <td>0.7.255.255</td>
+                                            <td>10.31.255.255</td>
+                                            <td>524286</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>13</td>
+                                            <td>10.32.0.0/11</td>
+                                            <td>10.32.0.0</td>
+                                            <td>255.224.0.0</td>
+                                            <td>0.31.255.255</td>
+                                            <td>10.63.255.255</td>
+                                            <td>2097150</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>14</td>
+                                            <td>10.64.0.0/10</td>
+                                            <td>10.64.0.0</td>
+                                            <td>255.192.0.0</td>
+                                            <td>0.63.255.255</td>
+                                            <td>10.127.255.255</td>
+                                            <td>4194302</td>
+                                        </tr>
+                                    
+                                        <tr>
+                                            <td>15</td>
+                                            <td>10.128.0.0/9</td>
+                                            <td>10.128.0.0</td>
+                                            <td>255.128.0.0</td>
+                                            <td>0.127.255.255</td>
+                                            <td>10.255.255.255</td>
+                                            <td>8388606</td>
+                                        </tr>
+                                    
+                                </table>
                             </div>
                         </div>
                         
                         <!-- 网段分布图表标签页 -->
-                        <div id="subnet-chart" class="tab-content" style="background-color: #fff; padding: 15px; border-radius: 4px; border: 1px solid #ddd;">
+                        <div id="subnet-chart" class="tab-content" style="background-color: rgba(243, 229, 245, 0.3); padding: 15px; border-radius: 4px;">
                             <div style="width: 100%; overflow: hidden;">
                                 <canvas id="subnetChartCanvas"></canvas>
                             </div>
@@ -425,43 +591,144 @@ HTML_TEMPLATE = '''
                                         
                                         // 4. 清空画布
                                         ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                        // 设置白色背景
-                                        ctx.fillStyle = '#fff';
-                                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                                         
                                         // 5. 获取数据 - 使用默认数据作为备用
                                         var parentCidr, splitInfo, remainingSubnets;
                                         try {
                                             // 从模板获取数据
-                                            parentCidr = "{{ result.parent if result else '192.168.0.0/16' }}";
+                                            parentCidr = "10.0.0.0/8";
                                             splitInfo = {
-                                                network: "{{ result.split_info.network if (result and result.split_info) else '192.168.0.0' }}",
-                                                cidr: "{{ result.split_info.cidr if (result and result.split_info) else '192.168.0.0/18' }}",
-                                                prefixlen: {{ result.split_info.prefixlen if (result and result.split_info) else 18 }},
-                                                num_addresses: {{ result.split_info.num_addresses if (result and result.split_info) else 16384 }},
-                                                usable_addresses: {{ result.split_info.usable_addresses if (result and result.split_info) else 16382 }}
+                                                network: "10.21.60.0",
+                                                cidr: "10.21.60.0/23",
+                                                prefixlen: 23,
+                                                num_addresses: 512,
+                                                usable_addresses: 510
                                             };
                                             
                                             remainingSubnets = [
-                                                {% if result and result.remaining_subnets_info %}
-                                                {% for subnet in result.remaining_subnets_info %}
+                                                
+                                                
                                                     {
-                                                        network: "{{ subnet.network }}",
-                                                        cidr: "{{ subnet.cidr }}",
-                                                        prefixlen: {{ subnet.prefixlen }},
-                                                        num_addresses: {{ subnet.num_addresses }},
-                                                        usable_addresses: {{ subnet.usable_addresses }}
-                                                    }{{ ',' if not loop.last else '' }}
-                                                {% endfor %}
-                                                {% else %}
+                                                        network: "10.0.0.0",
+                                                        cidr: "10.0.0.0/12",
+                                                        prefixlen: 12,
+                                                        num_addresses: 1048576,
+                                                        usable_addresses: 1048574
+                                                    },
+                                                
                                                     {
-                                                        network: '192.168.64.0',
-                                                        cidr: '192.168.64.0/18',
+                                                        network: "10.16.0.0",
+                                                        cidr: "10.16.0.0/14",
+                                                        prefixlen: 14,
+                                                        num_addresses: 262144,
+                                                        usable_addresses: 262142
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.20.0.0",
+                                                        cidr: "10.20.0.0/16",
+                                                        prefixlen: 16,
+                                                        num_addresses: 65536,
+                                                        usable_addresses: 65534
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.0.0",
+                                                        cidr: "10.21.0.0/19",
+                                                        prefixlen: 19,
+                                                        num_addresses: 8192,
+                                                        usable_addresses: 8190
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.32.0",
+                                                        cidr: "10.21.32.0/20",
+                                                        prefixlen: 20,
+                                                        num_addresses: 4096,
+                                                        usable_addresses: 4094
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.48.0",
+                                                        cidr: "10.21.48.0/21",
+                                                        prefixlen: 21,
+                                                        num_addresses: 2048,
+                                                        usable_addresses: 2046
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.56.0",
+                                                        cidr: "10.21.56.0/22",
+                                                        prefixlen: 22,
+                                                        num_addresses: 1024,
+                                                        usable_addresses: 1022
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.62.0",
+                                                        cidr: "10.21.62.0/23",
+                                                        prefixlen: 23,
+                                                        num_addresses: 512,
+                                                        usable_addresses: 510
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.64.0",
+                                                        cidr: "10.21.64.0/18",
                                                         prefixlen: 18,
                                                         num_addresses: 16384,
                                                         usable_addresses: 16382
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.21.128.0",
+                                                        cidr: "10.21.128.0/17",
+                                                        prefixlen: 17,
+                                                        num_addresses: 32768,
+                                                        usable_addresses: 32766
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.22.0.0",
+                                                        cidr: "10.22.0.0/15",
+                                                        prefixlen: 15,
+                                                        num_addresses: 131072,
+                                                        usable_addresses: 131070
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.24.0.0",
+                                                        cidr: "10.24.0.0/13",
+                                                        prefixlen: 13,
+                                                        num_addresses: 524288,
+                                                        usable_addresses: 524286
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.32.0.0",
+                                                        cidr: "10.32.0.0/11",
+                                                        prefixlen: 11,
+                                                        num_addresses: 2097152,
+                                                        usable_addresses: 2097150
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.64.0.0",
+                                                        cidr: "10.64.0.0/10",
+                                                        prefixlen: 10,
+                                                        num_addresses: 4194304,
+                                                        usable_addresses: 4194302
+                                                    },
+                                                
+                                                    {
+                                                        network: "10.128.0.0",
+                                                        cidr: "10.128.0.0/9",
+                                                        prefixlen: 9,
+                                                        num_addresses: 8388608,
+                                                        usable_addresses: 8388606
                                                     }
-                                                {% endif %}
+                                                
+                                                
                                             ];
                                             
                                             console.log('✅ 从模板获取数据:', {
@@ -554,7 +821,7 @@ HTML_TEMPLATE = '''
                                         ctx.lineWidth = 2;
                                         
                                         var segmentText = '父网段: ' + parentCidr;
-                                        var addressText = '可用地址: ' + parentTotalAddresses.toLocaleString();
+                                        var addressText = '可用地址数: ' + parentTotalAddresses.toLocaleString();
                                         var addressX = x + 250;
                                         
                                         ctx.strokeText(segmentText, x + 15, y + barHeight / 2);
@@ -581,7 +848,7 @@ HTML_TEMPLATE = '''
                                         
                                         // 绘制网段信息（左对齐）
                                         var segmentText = '切分网段: ' + splitInfo.cidr;
-                                        var addressText = '可用地址: ' + splitInfo.usable_addresses.toLocaleString();
+                                        var addressText = '可用地址数: ' + splitInfo.usable_addresses.toLocaleString();
                                         
                                         // 网段信息左对齐，地址数在固定位置对齐
                                         var addressX = x + 250; // 固定地址数的起始位置
@@ -621,7 +888,7 @@ HTML_TEMPLATE = '''
                                             
                                             // 绘制网段信息（左对齐）
                                             var segmentText = '网段 ' + (i + 1) + ': ' + subnet.cidr;
-                                            var addressText = '可用地址: ' + subnet.usable_addresses.toLocaleString();
+                                            var addressText = '可用地址数: ' + subnet.usable_addresses.toLocaleString();
                                             
                                             // 网段信息左对齐，地址数在固定位置对齐
                                             var addressX = x + 250; // 固定地址数的起始位置
@@ -681,9 +948,9 @@ HTML_TEMPLATE = '''
                             // 页面加载完成后绘制图表
                             window.onload = function() {
                                 // 检查是否有结果数据
-                                {% if result and not result.error %}
+                                
                                     drawSubnetChart();
-                                {% endif %}
+                                
                             };
                             
                             // 监听标签页切换事件，当切换到图表标签页时重新绘制
@@ -703,18 +970,18 @@ HTML_TEMPLATE = '''
                             });
                               </script>
                           </div>
-                    {% endif %}
+                    
                 </div>
-            {% endif %}
+            
         </div>
         
         <!-- 子网规划建议功能 -->
-        <div id="subnet-plan" class="tool-content {{ 'active' if active_tab == 'subnet-plan' else '' }}">
+        <div id="subnet-plan" class="tool-content ">
             <form method="POST">
                 <input type="hidden" name="active_tab" value="subnet-plan">
                 <div class="form-group">
                     <label for="plan-parent">父网段 (CIDR格式):</label>
-                    <input type="text" id="plan-parent" name="plan-parent" value="{{ plan_parent or '192.168.0.0/16' }}" placeholder="例如: 192.168.0.0/16">
+                    <input type="text" id="plan-parent" name="plan-parent" value="192.168.0.0/16" placeholder="例如: 192.168.0.0/16">
                 </div>
                 
                 <div class="table-container">
@@ -728,20 +995,7 @@ HTML_TEMPLATE = '''
                             </tr>
                         </thead>
                         <tbody id="subnet-requirements">
-                            {% if subnet_requirements %}
-                                {% for name, hosts in subnet_requirements %}
-                                    <tr class="subnet-requirement">
-                                        <td>{{ loop.index }}</td>
-                                        <td><input type="text" name="subnet-name[]" value="{{ name }}" placeholder="例如: 办公区"></td>
-                                        <td><input type="number" name="subnet-hosts[]" value="{{ hosts }}" placeholder="例如: 200" min="1"></td>
-                                        <td>
-                                            <button type="button" onclick="removeSubnetRequirement(this)" style="background-color: #e74c3c; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-size: 14px; width: 100%;">
-                                                删除
-                                            </button>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            {% else %}
+                            
                                 <tr class="subnet-requirement">
                                     <td>1</td>
                                     <td><input type="text" name="subnet-name[]" placeholder="例如: 办公区"></td>
@@ -752,7 +1006,7 @@ HTML_TEMPLATE = '''
                                         </button>
                                     </td>
                                 </tr>
-                            {% endif %}
+                            
                         </tbody>
                     </table>
                 </div>
@@ -762,78 +1016,7 @@ HTML_TEMPLATE = '''
             </form>
             
             <!-- 子网规划结果展示 -->
-            {% if plan_result %}
-                <div class="result">
-                    <h2>子网规划</h2>
-                    
-                    {% if plan_result.error %}
-                        <div class="error">
-                            <strong>错误：</strong>{{ plan_result.error }}
-                        </div>
-                    {% else %}
-                        <div class="subnet-info">
-                            <h3>规划概览</h3>
-                            <div class="info-row">
-                                <div class="info-label">父网段:</div>
-                                <div class="info-value">{{ plan_result.parent_cidr }}</div>
-                            </div>
-                        </div>
-                    
-                    <h3>已分配子网</h3>
-                    <div class="table-container">
-                        <table class="subnet-table">
-                            <tr>
-                                <th>序号</th>
-                                <th>名称</th>
-                                <th>CIDR</th>
-                                <th>需求主机数</th>
-                                <th>可用主机数</th>
-                                <th>网络地址</th>
-                                <th>广播地址</th>
-                                <th>起始IP</th>
-                                <th>结束IP</th>
-                                <th>子网掩码</th>
-                            </tr>
-                            {% for subnet in plan_result.allocated_subnets %}
-                                <tr>
-                                    <td>{{ loop.index }}</td>
-                                    <td>{{ subnet.name }}</td>
-                                    <td>{{ subnet.cidr }}</td>
-                                    <td>{{ subnet.required_hosts }}</td>
-                                    <td>{{ subnet.available_hosts }}</td>
-                                    <td>{{ subnet.info.network }}</td>
-                                    <td>{{ subnet.info.broadcast }}</td>
-                                    <td>{{ subnet.info.host_range_start }}</td>
-                                    <td>{{ subnet.info.host_range_end }}</td>
-                                    <td>{{ subnet.info.netmask }}</td>
-                                </tr>
-                            {% endfor %}
-                        </table>
-                    </div>
-                    
-                    {% if plan_result.remaining_subnets %}
-                        <h3>剩余可用网段</h3>
-                        <div class="table-container">
-                            <table class="subnet-table">
-                                <tr>
-                                    <th>序号</th>
-                                    <th>网段</th>
-                                    <th>可用地址</th>
-                                </tr>
-                                {% for subnet in plan_result.remaining_subnets %}
-                                    {% set info = plan_result.remaining_subnets_info[loop.index0] %}
-                                    <tr>
-                                        <td>{{ loop.index }}</td>
-                                        <td>{{ subnet }}</td>
-                                        <td>{{ info.usable_addresses }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </table>
-                        </div>
-                    {% endif %}
-                    {% endif %}
-                </div>
-            {% endif %}
+            
         </div>
         
         <script>
@@ -911,7 +1094,7 @@ HTML_TEMPLATE = '''
                 // 特殊处理子网规划中的数组输入字段
                 if (tabId === 'subnet-plan') {
                     // 先清除现有输入行
-                    const container = document.getElementById('subnet-requirements');
+                    const container = targetTab.getElementById('subnet-requirements');
                     if (container) {
                         // 保留标题行，移除其他行
                         const rows = container.querySelectorAll('tr.subnet-requirement');
@@ -1107,123 +1290,8 @@ HTML_TEMPLATE = '''
         </script>
         
         <div style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 14px;">
-            版本: v{{ version }}
+            版本: v1.3.0
         </div>
     </div>
 </body>
 </html>
-'''
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    # 默认值设置为None，只有当表单提交包含特定字段时才更新
-    parent = None
-    split = None
-    result = None
-    plan_result = None
-    plan_parent = None
-    subnet_names = []
-    host_counts = []
-    active_tab = request.form.get('currentActiveTab', request.args.get('active_tab', 'subnet-split'))  # 默认显示子网切分标签页
-
-    if request.method == "POST":
-        # 尝试获取所有表单数据
-        all_form_data = request.form.get('allFormData')
-        if all_form_data:
-            try:
-                # 解析所有表单数据
-                all_form_data = json.loads(all_form_data)
-                
-                # 恢复子网切分页面的数据
-                if 'subnet-split' in all_form_data and all_form_data['subnet-split']:
-                    split_data = all_form_data['subnet-split']
-                    if 'parent' in split_data:
-                        parent = split_data['parent']
-                    if 'split' in split_data:
-                        split = split_data['split']
-                
-                # 恢复子网规划页面的数据
-                if 'subnet-plan' in all_form_data and all_form_data['subnet-plan']:
-                    plan_data = all_form_data['subnet-plan']
-                    if 'plan-parent' in plan_data:
-                        plan_parent = plan_data['plan-parent']
-                    if 'subnet-name' in plan_data and 'subnet-hosts' in plan_data:
-                        subnet_names = plan_data['subnet-name']
-                        host_counts = plan_data['subnet-hosts']
-                        # 过滤空值并转换为整数
-                        filtered_names = []
-                        filtered_hosts = []
-                        for name, host_count in zip(subnet_names, host_counts):
-                            if host_count and str(host_count).strip():
-                                try:
-                                    filtered_names.append(name)
-                                    filtered_hosts.append(int(host_count))
-                                except ValueError:
-                                    pass
-                        subnet_names = filtered_names
-                        host_counts = filtered_hosts
-            except json.JSONDecodeError:
-                pass
-        
-        action = request.form.get('action')
-        if action == 'split':
-            # 只有子网切分表单提交时才更新这些值
-            parent = request.form.get("parent", parent or "10.0.0.0/8")
-            split = request.form.get("split", split or "10.21.60.0/23")
-            # 执行切分
-            result = split_subnet(parent, split)
-        elif action == 'plan':
-            # 只有子网规划表单提交时才更新这些值
-            plan_parent = request.form.get('plan-parent', plan_parent or "192.168.0.0/16")
-            subnet_names_input = request.form.getlist('subnet-name[]')
-            host_counts_input = request.form.getlist('subnet-hosts[]')
-            
-            # 如果表单中有新的输入，使用新的输入
-            if subnet_names_input and host_counts_input:
-                # 过滤掉空字符串并转换为整数
-                filtered_names = []
-                filtered_hosts = []
-                valid = True
-                for i in range(len(host_counts_input)):
-                    host_count = host_counts_input[i].strip()
-                    name = subnet_names_input[i].strip() if i < len(subnet_names_input) else f"子网{i+1}"
-                    if host_count:
-                        try:
-                            filtered_hosts.append(int(host_count))
-                            filtered_names.append(name)
-                        except ValueError:
-                            valid = False
-                            break
-                
-                # 如果所有输入都是有效的，构造required_subnets参数并调用函数
-                if valid:
-                    # 更新要传递给模板的变量
-                    subnet_names = filtered_names
-                    host_counts = filtered_hosts
-                    
-                    # 构造required_subnets参数：列表中的每个元素是包含name和hosts字段的字典
-                    required_subnets = []
-                    for name, hosts in zip(subnet_names, host_counts):
-                        required_subnets.append({"name": name, "hosts": hosts})
-                    
-                    # 调用子网规划建议函数
-                    plan_result = suggest_subnet_planning(plan_parent, required_subnets)
-                else:
-                    # 如果有无效输入，返回错误信息
-                    plan_result = {"error": "请确保所有子网的主机数字段都填写了有效的整数"}
-
-    # 在渲染模板前，确保所有必要的变量都有合理的默认值
-    # 这些默认值只在首次加载或未提交对应表单时使用
-    if parent is None:
-        parent = request.args.get('parent', "10.0.0.0/8")
-    if split is None:
-        split = request.args.get('split', "10.21.60.0/23")
-    if plan_parent is None:
-        plan_parent = request.args.get('plan_parent', "192.168.0.0/16")
-    
-    # 将 subnet_names 和 host_counts 组合成列表传递给模板
-    subnet_requirements = list(zip(subnet_names, host_counts)) if subnet_names and host_counts else []
-    return render_template_string(HTML_TEMPLATE, parent=parent, split=split, result=result, plan_result=plan_result, plan_parent=plan_parent, subnet_requirements=subnet_requirements, version=__version__, active_tab=active_tab)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
